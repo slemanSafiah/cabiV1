@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+</head>
+
+<body>
+    <h1>yyyyyyyyyy</h1>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.4/socket.io.js"> </script>
+    <script>
+        var socket = io.connect('http://localhost:5000');
+        socket.emit("join", 3)
+        const data = {
+            registrationToken: "123123",
+            userId: 0,
+            pickupLat: 30.044263134225872,
+            pickupLng: 31.2375034019351,
+            pickAddress: "abc",
+            dropoffLat: 30.044367093804823,
+            dropoffLng: 31.235717982314123,
+            dropoffAddress: "qwe",
+            promoCode: 8889584283,
+            categoryCarTypeID: 1,
+            cancelReasonID: 0,
+            paymentStatusID: 1,
+            token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiUGFzczE1MzMyMzU4OTIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9zaWQiOiIxMTAxIiwianRpIjoiOTJmNTBkYmMtNDkyZC00MjlmLTgxZWMtZGMwNDVjYjNkNWM3IiwiZXhwIjoxNjAyNjAyNjgxLCJpc3MiOiJodHRwczovL2Rldm1hY2hpbmUudGFrZXRvc2EuY29tIiwiYXVkIjoiaHR0cHM6Ly9kZXZtYWNoaW5lLnRha2V0b3NhLmNvbSJ9.hcillc32-4xsyP7YrNjxCC9EhbCsCoOdkQKQ2T9Gx-w",
+            maxDistance: 790.1836707231585
+        }
+        socket.on("tripInfo", (data) => {
+            alert("kljlk")
+            const d = {
+                tripID: 240,
+                driverID: 3,
+                requestStatus: 1,
+            }
+            //socket.emit("driverRespond", d)
+        })
+
+
+        var { DistinationDuration,
+            tripCost,
+            AddMinutesToDate,
+            DateFormat,
+            driveTimeCalc,
+            users,
+            admins,
+            userinterval,
+            listinterval,
+            trackinterval,
+            entitle,
+            artitle,
+            enmes,
+            armes,
+            nodrivermesar,
+            nodrivermesen,
+            nodrivermesenm,
+            nodrivertitlear,
+            nodrivertitleen,
+            notification_options,
+            io,
+            admin
+        } = require('../server');
+    </script>
+</body>
+
+</html>
