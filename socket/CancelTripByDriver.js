@@ -21,11 +21,12 @@ module.exports = async function (data) {
                 let promoResponse = await axios(config).then((res) => {
                     console.log("uyuyuyu", res.data);
                     if (res.data.status) {
-                        io.to(users.get(trip.userID)).emit("CancelDrive", {
-                            msg: res.data.message,
+                        io.to(users.get(trip.userID)).emit("CancelTripByDriver", {
+                            message: res.data.message,
                             status: true,
                         });
-                        io.to(users.get(data.driverID)).emit("CancelOnWay", {
+
+                        io.to(users.get(data.driverID)).emit("CancelTripByDriver", {
                             status: true,
                         });
 
@@ -74,25 +75,25 @@ module.exports = async function (data) {
                             notification_options
                         );
                     } else {
-                        io.to(users.get(data.driverID)).emit("CancelOnWay", {
+                        io.to(users.get(data.driverID)).emit("CancelTripByDriver", {
                             status: false,
-                            msg: "error in sql",
+                            message: "error in sql",
                         });
                     }
                 });
             } catch (error) {
                 console.log("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq");
                 // console.log(error);
-                io.to(users.get(data.driverID)).emit("CancelOnWay", {
+                io.to(users.get(data.driverID)).emit("CancelTripByDriver", {
                     status: false,
-                    msg: "error in sql",
+                    message: "error in sql",
                 });
             }
         });
     } catch {
-        io.to(users.get(data.driverID)).emit("CancelOnWay", {
+        io.to(users.get(data.driverID)).emit("CancelTripByDriver", {
             status: false,
-            msg: "error in mongodb",
+            message: "error in mongodb",
         });
     }
 }

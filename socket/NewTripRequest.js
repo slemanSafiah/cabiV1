@@ -4,7 +4,6 @@ const DriverM = require("../models/Driver");
 const CategoryFareM = require("../models/CategoryFare");
 const TripM = require("../models/Trip");
 const Pending = require("../models/Pending");
-const DeliverySettingM = require("../models/DeliverySetting");
 
 var {
     users,
@@ -16,7 +15,7 @@ var {
     nodrivertitleen,
     notification_options,
     io,
-    admin
+    admin,
 } = require('../server');
 
 var { DistinationDuration, tripCost, driveTimeCalc } = require('../function');
@@ -184,6 +183,7 @@ module.exports = async function (data) {
                             drivers[0].Language
                         );
 
+                        socket.setMaxListeners(21);
                         const drs = [];
                         for (let i = 0; i < Math.min(drivers.length, 3); i++) {
                             drs.push({
@@ -266,9 +266,9 @@ module.exports = async function (data) {
                                         users.get(drivers[0].driverID),
                                         drivers[0].driverID
                                     );
-                                    io
+                                    socket
                                         .to(users.get(drivers[0].driverID))
-                                        .emit("tripInfo", from_to);
+                                        .emit("NewTripInfo", from_to);
                                     await Pending.findOne({ tripID: Trip_ID }).then(async (p) => {
                                         //console.log(p);
                                         let ar = p.drs;
@@ -293,7 +293,7 @@ module.exports = async function (data) {
                                             }
                                         });
                                         if (now === 10) {
-                                            io.emit("ready");
+                                            socket.emit("ready");
                                         }
                                         console.log(now);
                                         if (now === 20) {
@@ -347,10 +347,19 @@ module.exports = async function (data) {
                                                                                 "Accept-Language": data.Language,
                                                                             },
                                                                         }).then((res) => {
+                                                                            console.log(
+                                                                                users.get(data.userId),
+                                                                                data.userId,
+                                                                                "uyuiyuiyiuyuiyiu"
+                                                                            );
                                                                             io.to(users.get(data.userId)).emit(
-                                                                                "tripInfo",
+                                                                                "DriverResponded",
                                                                                 {
                                                                                     status: 2,
+                                                                                    message:
+                                                                                        saved.Language == "en"
+                                                                                            ? "sorry,there is no available driver"
+                                                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
                                                                                 }
                                                                             );
 
@@ -446,9 +455,9 @@ module.exports = async function (data) {
                                                             );
 
                                                         /////
-                                                        io
+                                                        socket
                                                             .to(users.get(drivers[1].driverID))
-                                                            .emit("tripInfo", from_to);
+                                                            .emit("NewTripInfo", from_to);
 
                                                         await Pending.findOne({ tripID: Trip_ID }).then(
                                                             async (p12) => {
@@ -543,8 +552,12 @@ module.exports = async function (data) {
                                                                                             console.log(res.data);
                                                                                             io.to(
                                                                                                 users.get(data.userId)
-                                                                                            ).emit("tripInfo", {
+                                                                                            ).emit("DriverResponded", {
                                                                                                 status: 2,
+                                                                                                message:
+                                                                                                    saved.Language == "en"
+                                                                                                        ? "sorry,there is no available driver"
+                                                                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
                                                                                             });
                                                                                         });
                                                                                     } catch (error) {
@@ -640,9 +653,9 @@ module.exports = async function (data) {
                                                                                 notification_options
                                                                             );
                                                                         /////
-                                                                        io
+                                                                        socket
                                                                             .to(users.get(drivers[2].driverID))
-                                                                            .emit("tripInfo", from_to);
+                                                                            .emit("NewTripInfo", from_to);
 
                                                                         await Pending.findOne({
                                                                             tripID: Trip_ID,
@@ -735,9 +748,17 @@ module.exports = async function (data) {
                                                                                                     }).then((res) => {
                                                                                                         io.to(
                                                                                                             users.get(data.userId)
-                                                                                                        ).emit("tripInfo", {
-                                                                                                            status: 2,
-                                                                                                        });
+                                                                                                        ).emit(
+                                                                                                            "DriverResponded",
+                                                                                                            {
+                                                                                                                status: 2,
+                                                                                                                message:
+                                                                                                                    saved.Language ==
+                                                                                                                        "en"
+                                                                                                                        ? "sorry,there is no available driver"
+                                                                                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                                                            }
+                                                                                                        );
                                                                                                         console.log(res.data);
                                                                                                     });
                                                                                                 } catch (error) {
@@ -798,15 +819,15 @@ module.exports = async function (data) {
                         Pending.findOne({ tripID: trip.tripID }).then(async (res1) => {
                             trip.tripStatusId = 2;
                             trip.tripDrivers = [];
-                            await trip.save().then(async (res) => {
-                                const rs = await Pending.findOne({ tripID: trip.tripID });
+                            await trip.save().then((res) => {
+                                //console.log(res.data);
                                 try {
                                     console.log(res1, "yup");
                                     axios({
                                         method: "post",
                                         url:
                                             "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                        data: rs,
+                                        data: res1,
                                         headers: {
                                             Authorization: `Bearer ${res1.loginToken}`,
                                             "Content-Type": "application / json",
@@ -862,13 +883,24 @@ module.exports = async function (data) {
                                                     notification_options
                                                 );
 
-                                            io.to(users.get(data.userId)).emit("tripInfo", {
+                                            io.to(users.get(data.userId)).emit("DriverResponded", {
                                                 status: 2,
+                                                message:
+                                                    res1.Language == "en"
+                                                        ? "sorry,there is no available driver"
+                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
                                             });
                                         }
                                     });
                                 } catch (error) {
                                     console.log(error);
+                                    io.to(users.get(data.userId)).emit("DriverResponded", {
+                                        status: 0,
+                                        message:
+                                            res1.Language == "en"
+                                                ? "sorry,there is no available driver"
+                                                : "!عذراُ لا يوجد سائق متاح حالياً",
+                                    });
                                 }
                             });
                         });
@@ -876,9 +908,12 @@ module.exports = async function (data) {
                 } else {
                     var user_id = users.get(data.userId);
 
-                    io.to(user_id).emit("newTrip", {
-                        message: "error sql trip id",
-                        status: false,
+                    io.to(users.get(data.userId)).emit("DriverResponded", {
+                        status: 0,
+                        message:
+                            data.Language == "en"
+                                ? "sorry,there is no available driver"
+                                : "!عذراُ لا يوجد سائق متاح حالياً",
                     });
                 }
             });

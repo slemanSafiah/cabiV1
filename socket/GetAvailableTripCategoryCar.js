@@ -9,7 +9,7 @@ var { DistinationDuration, tripCost, driveTimeCalc } = require('../function');
 module.exports = async function (data) {
     const id = uuidv4();
     listinterval.set(data.userId, id);
-    // console.log(data);
+    //console.log(data);
     var discountType = -1;
     var discountValue = 0;
 
@@ -78,8 +78,9 @@ module.exports = async function (data) {
                             if (i == 1 && driver == null) {
                                 //console.log(i, driver);
                                 let user_id = users.get(data.userid);
-                                io.to(user_id).emit("getavailable", {
-                                    msg: "لا يوجد سائق متاح في منطقتك حالياً",
+                                io.to(user_id).emit("GetAvailableTripCategoryCar", {
+                                    message: "لا يوجد سائق متاح في منطقتك حالياً",
+                                    status: false,
                                 });
                             } else if (driver != null) {
                                 //console.log(driver);
@@ -134,9 +135,9 @@ module.exports = async function (data) {
                         driveTime,
                         status: true,
                     };
-                    //console.log(data1, users.get(data.userId), data.userId);
-                    var user_id = users.get(data.userId);
-                    io.to(user_id).emit("listCategory", data1);
+                    console.log(data1, users.get(data.userId), data.userId);
+                    //var user_id = users.get(data.userId);
+                    io.to(user_id).emit("GetAvailableTripCategoryCar", data1);
                 });
                 const fun = () => {
                     if (
@@ -170,8 +171,8 @@ module.exports = async function (data) {
                             }).then(async (driver) => {
                                 if (i == 1 && driver == null) {
                                     let user_id = users.get(data.userid);
-                                    io.to(user_id).emit("getavailable", {
-                                        msg: "no driver found",
+                                    io.to(user_id).emit("GetAvailableTripCategoryCar", {
+                                        message: "no driver found",
                                     });
                                 } else if (driver != null) {
                                     //  console.log(driver);
@@ -236,7 +237,7 @@ module.exports = async function (data) {
                         ) {
                             var user_id = users.get(data.userId);
                             // console.log(data.userId, users.get(data.userId));
-                            io.to(user_id).emit("listCategory", data1);
+                            io.to(user_id).emit("GetAvailableTripCategoryCar", data1);
                         }
                     });
                 };
@@ -245,9 +246,9 @@ module.exports = async function (data) {
         } catch {
             var user_id = users.get(data.userId);
             // console.log(data.userId, users.get(data.userId));
-            io.to(user_id).emit("listCategory", {
+            io.to(user_id).emit("GetAvailableTripCategoryCar", {
                 status: false,
-                msg: "location out of bounds",
+                message: "location out of bounds",
             });
         }
     }

@@ -1,19 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const socketIo = require("socket.io");
 const admin = require("firebase-admin");
 const http = require("http");
 const cors = require("cors");
-const DriverM = require("./models/Driver");
-const Pending = require("./models/Pending");
 var serviceAccount = require("./cabi-app-firebase-adminsdk-4cy4f-c6feddd07b.json");
 
+const DriverM = require("./models/Driver");
+const socketIo = require("socket.io");
+const Pending = require("./models/Pending");
 require("dotenv/config");
+
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const logger = require("./logger");
 
 var users = new Map();
 var admins = new Map();
@@ -21,81 +21,94 @@ var userinterval = new Map();
 var listinterval = new Map();
 var trackinterval = new Map();
 
-exports.users = users;
-exports.admins = admins;
-exports.userinterval = userinterval;
-exports.listinterval = listinterval;
-exports.trackinterval = trackinterval;
+module.exports.google_Key = "AIzaSyCKW4oeH-_tRtLAT_sWK9G7wbgEOpxWAzI";
+module.exports.entitle = "Congratulation, you get a new trip";
+module.exports.artitle = " تهانينا، لقد حصلت على طلب توصيل زبون";
+module.exports.enmes = "Congratulation, you get a new trip, please accept it quickly";
+module.exports.armes = " تهانينا، لقد حصلت على طلب توصيل زبون ، فضلا اقبل الطلب سريع";
+module.exports.nodrivertitleen = "Sorry, No Captains available now!";
+module.exports.nodrivertitlear = " !عفوا ، لايتوفر كباتن متاحة حاليا";
+module.exports.nodrivermesen = "Sorry, No Captains available now, please try again!";
+module.exports.nodrivermesar = "!عفوا ، لايتوفر كباتن متاحة حاليا، فضلا حاول مرة أخرى";
+module.exports.users = users;
+module.exports.admins = admins;
+module.exports.userinterval = userinterval;
+module.exports.listinterval = listinterval;
+module.exports.trackinterval = trackinterval;
+module.exports.notification_options = { priority: "high", timeToLive: 60 * 60 * 24 };
 
 
-const server = http.createServer(app);
-const io = socketIo(server);
 
-mongoose.connect(process.env.DB_CONNECTION, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}, () => console.log("connected to DB")
+mongoose.connect(
+  process.env.DB_CONNECTION,
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  },
+  () => console.log("connected to DB")
 );
 
 mongoose.connection.on("error", (err) => {
   console.log("error from server");
 });
 
+var AcceptRejectTrip = require('./socket/AcceptRejectTrip');
+var AdminGetCount = require('./socket/AdminGetCount');
+var AdminGetDrivers = require('./socket/AdminGetDrivers');
+var CancelTripByClient = require('./socket/CancelTripByClient');
+var CancelTripByDriver = require('./socket/CancelTripByDriver');
+var ChangeTripStatus = require('./socket/ChangeTripStatus');
+var GetAvailableDrivers = require('./socket/GetAvailableDrivers');
+var GetAvailableTripCategoryCar = require('./socket/GetAvailableTripCategoryCar');
+var IsBusy = require('./socket/IsBusy');
+var IsOnline = require('./socket/IsOnline');
+var NewTripRequest = require('./socket/NewTripRequest');
+var UpdateLocation = require('./socket/Updatelocation');
+
+const server = http.createServer(app);
+const io = socketIo(server);
+
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://cabi-app.firebaseio.com",
 });
 
-exports.notification_options = { priority: "high", timeToLive: 60 * 60 * 24 };
-exports.entitle = "Congratulation, you get a new trip";
-exports.artitle = " تهانينا، لقد حصلت على طلب توصيل زبون";
-exports.enmes = "Congratulation, you get a new trip, please accept it quickly";
-exports.armes = " تهانينا، لقد حصلت على طلب توصيل زبون ، فضلا اقبل الطلب سريع";
-exports.nodrivertitleen = "Sorry, No Captains available now!";
-exports.nodrivertitlear = " !عفوا ، لايتوفر كباتن متاحة حاليا";
-exports.nodrivermesen = "Sorry, No Captains available now, please try again!";
-exports.nodrivermesar = "!عفوا ، لايتوفر كباتن متاحة حاليا، فضلا حاول مرة أخرى";
 exports.io = io;
 exports.admin = admin;
 
-var is_Online = require('./socket/is_Online');
-var newTrip = require('./socket/newTrip');
-var driverRespond = require('./socket/driverRespond');
-var CancelOnWay = require('./socket/CancelOnWay');
-var cancelPassenger = require('./socket/cancelPassenger');
-var arrive = require('./socket/arrive');
-var updatelocation = require('./socket/updatelocation');
-var getavailable = require('./socket/getavailable');
-var listCategory = require('./socket/listCategory');
-var trackCategory = require('./socket/trackCategory');
-var AdminGetDrivers = require('./socket/AdminGetDrivers');
-var AdminGetCount = require('./socket/AdminGetCount');
+
+
 
 io.on("connection", (socket) => {
   console.log("a user connected");
-  socket.on("is_Online", (data) => {
-    is_Online(data);
+
+  socket.on("IsBusy", async (data) => {
+    IsBusy(data);
   });
 
-  socket.on("newTrip", async (data) => {
-    socket.setMaxListeners(21);
-    newTrip(data);
+  socket.on("IsOnline", async (data) => {
+    IsOnline(data);
   });
 
-  socket.on("driverRespond", async (data) => {
-    driverRespond(data);
+  socket.on("NewTripRequest", async (data) => {
+    NewTripRequest(data);
   });
 
-  socket.on("CancelOnWay", async (data) => {
-    CancelOnWay(data);
+  socket.on("AcceptRejectTrip", async (data) => {
+    AcceptRejectTrip(data);
   });
 
-  socket.on("cancelPassenger", async (data) => {
-    cancelPassenger(data);
+  socket.on("CancelTripByDriver", async (data) => {
+    CancelTripByDriver(data);
   });
 
-  socket.on("arrive", async (data) => {
-    arrive(data);
+  socket.on("CancelTripByClient", async (data) => {
+    CancelTripByClient(data);
+  });
+
+  socket.on("ChangeTripStatus", async (data) => {
+    ChangeTripStatus(data);
   });
 
   socket.on("finish", (data) => {
@@ -104,20 +117,16 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("updatelocation", (data) => {
-    updatelocation(data);
+  socket.on("UpdateLocation", (data) => {
+    UpdateLocation(data);
   });
 
-  socket.on("getavailable", (data) => {
-    getavailable(data);
+  socket.on("GetAvailableDrivers", (data) => {
+    GetAvailableDrivers(data);
   });
 
-  socket.on("listCategory", async (data) => {
-    listCategory(data);
-  });
-
-  socket.on("trackCategory", async (data) => {
-    trackCategory(data);
+  socket.on("GetAvailableTripCategoryCar", async (data) => {
+    GetAvailableTripCategoryCar(data);
   });
 
   socket.on("AdminGetDrivers", (data) => {
@@ -174,111 +183,6 @@ io.on("connection", (socket) => {
     admins.delete(number);
     console.log("admin disconnected");
   });
-});
-
-app.post("/driver/is_Busy", async (req, res) => {
-  console.log(req.query);
-  try {
-    const driver = await DriverM.findOne({
-      driverID: req.query.driverID,
-    });
-    if (req.query.status == 1) {
-      const updated_driver = await DriverM.updateOne(
-        {
-          driverID: req.query.driverID,
-        },
-        {
-          $set: {
-            isBusy: true,
-          },
-        }
-      ).then(() => {
-        const ISBUSY = true;
-        const data = {
-          status:
-            driver.isOnline === true && ISBUSY == false
-              ? 1
-              : driver.isOnline == true && ISBUSY == true
-                ? 2
-                : driver.isOnline == false
-                  ? 3
-                  : 0,
-          driverID: driver.driverID,
-          location: driver.location,
-          categoryCarTypeID: driver.categoryCarTypeID,
-          phoneNumber: driver.phoneNumber,
-          idNo: driver.idNo,
-          driverNameAr: driver.driverNameAr,
-          driverNameEn: driver.driverNameEn,
-          modelNameAr: driver.modelNameAr,
-          modelNameEn: driver.modelNameEn,
-          colorNameAr: driver.colorNameAr,
-          colorNameEn: driver.colorNameEn,
-          carImage: driver.carImage,
-          driverImage: driver.driverImage,
-          updateLocationDate: driver.updateLocationDate,
-          trip: driver.isBusy ? driver.busyTrip : "",
-        };
-        admins.forEach((admin) => {
-          io.to(admin).emit("trackAdmin", data);
-          io.to(admin).emit("trackCount");
-        });
-      });
-    }
-    if (req.query.status == 2) {
-      const updated_driver = await DriverM.updateOne(
-        {
-          driverID: req.query.driverID,
-        },
-        {
-          $set: {
-            isBusy: false,
-            busyTrip: {},
-          },
-        }
-      ).then(() => {
-        const ISBUSY = false;
-        const data = {
-          status:
-            driver.isOnline === true && ISBUSY == false
-              ? 1
-              : driver.isOnline == true && ISBUSY == true
-                ? 2
-                : driver.isOnline == false
-                  ? 3
-                  : 0,
-          driverID: driver.driverID,
-          location: driver.location,
-          categoryCarTypeID: driver.categoryCarTypeID,
-          phoneNumber: driver.phoneNumber,
-          idNo: driver.idNo,
-          driverNameAr: driver.driverNameAr,
-          driverNameEn: driver.driverNameEn,
-          modelNameAr: driver.modelNameAr,
-          modelNameEn: driver.modelNameEn,
-          colorNameAr: driver.colorNameAr,
-          colorNameEn: driver.colorNameEn,
-          carImage: driver.carImage,
-          driverImage: driver.driverImage,
-          updateLocationDate: driver.updateLocationDate,
-          trip: driver.isBusy ? driver.busyTrip : "",
-        };
-        admins.forEach((admin) => {
-          io.to(admin).emit("trackAdmin", data);
-          io.to(admin).emit("trackCount");
-        });
-      });
-    }
-    res.json({
-      sucess: 1,
-      message: "update busy status success",
-    });
-  } catch (error) {
-    res.json({
-      sucess: 0,
-      message: error,
-    });
-  }
 });
 
 app.post("/driver/updateLocation", async (req, res) => {
@@ -361,9 +265,7 @@ app.post("/driver/updateLocation", async (req, res) => {
   }
 });
 
-
 const Port = process.env.Port || 5000;
 server.listen(Port, () => {
   console.log(`Server running on port ${Port}`);
-  logger.log("error", `Server running on port ${Port}`);
 });

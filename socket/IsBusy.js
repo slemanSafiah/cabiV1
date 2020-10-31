@@ -3,11 +3,11 @@ var { users, admins, io } = require('../server');
 const axios = require("axios");
 
 module.exports = async function (data) {
+    //console.log("is busy ");
     try {
         const driver = await DriverM.findOne({
             driverID: data.driverID,
         });
-        console.log(driver);
         if (data.status == 1) {
             const updated_driver = await DriverM.updateOne(
                 {
@@ -15,23 +15,18 @@ module.exports = async function (data) {
                 },
                 {
                     $set: {
-                        isOnline: true,
-                        // tokenID: data.tokenID,
-                        deviceType: data.deviceType,
-                        Language: data.Language,
+                        isBusy: true,
                     },
                 }
             ).then(() => {
-                io.to(users.get(data.driverID)).emit("is_Online", { status: true });
-                //console.log(driver);
-                const ISONLINE = true;
+                const ISBUSY = true;
                 const data1 = {
                     status:
-                        ISONLINE === true && driver.isBusy == false
+                        driver.isOnline === true && ISBUSY == false
                             ? 1
-                            : ISONLINE == true && driver.isBusy == true
+                            : driver.isOnline == true && ISBUSY == true
                                 ? 2
-                                : ISONLINE == false
+                                : driver.isOnline == false
                                     ? 3
                                     : 0,
                     driverID: driver.driverID,
@@ -63,18 +58,19 @@ module.exports = async function (data) {
                 },
                 {
                     $set: {
-                        isOnline: false,
+                        isBusy: false,
+                        busyTrip: {},
                     },
                 }
             ).then(() => {
-                const ISONLINE = false;
+                const ISBUSY = false;
                 const data1 = {
                     status:
-                        ISONLINE === true && driver.isBusy == false
+                        driver.isOnline === true && ISBUSY == false
                             ? 1
-                            : ISONLINE == true && driver.isBusy == true
+                            : driver.isOnline == true && ISBUSY == true
                                 ? 2
-                                : ISONLINE == false
+                                : driver.isOnline == false
                                     ? 3
                                     : 0,
                     driverID: driver.driverID,
@@ -93,18 +89,20 @@ module.exports = async function (data) {
                     updateLocationDate: driver.updateLocationDate,
                     trip: driver.isBusy ? driver.busyTrip : "",
                 };
-                // console.log(data);
                 admins.forEach((admin) => {
                     io.to(admin).emit("trackAdmin", data1);
                     io.to(admin).emit("trackCount");
                 });
             });
         }
+        io.to(users.get(data.driverID)).emit("IsBusy", {
+            status: true,
+            message: "isbusy success",
+        });
     } catch (error) {
-        console.log(users)
-        io.to(users.get(data.driverID)).emit("is_Online", {
+        io.to(users.get(data.driverID)).emit("IsBusy", {
             status: false,
-            msg: "error in online",
+            message: "error in busy",
         });
     }
 }

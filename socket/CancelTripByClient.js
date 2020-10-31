@@ -7,9 +7,9 @@ var { users, notification_options, io, admin } = require('../server');
 
 
 module.exports = async function (data) {
+    console.log(data);
     TripM.findOne({ tripID: data.tripMasterID }).then(async (resp) => {
         if (resp) {
-            console.log(resp);
             await axios({
                 method: "post",
                 url: `https://devmachine.taketosa.com/api/Trip/CancelTripPassenger?tripMasterID=${data.tripMasterID}&cancelReasonID=${data.cancelReasonID}`,
@@ -19,6 +19,7 @@ module.exports = async function (data) {
                     "Accept-Language": data.Language,
                 },
             }).then(async (res) => {
+                console.log(res.data);
                 if (res.data.status) {
                     await Pending.findOne({ tripID: data.tripMasterID }).then(
                         async (pend) => {
@@ -28,10 +29,17 @@ module.exports = async function (data) {
                                     await DriverM.find({ driverID: arr[j].driverID }).then(
                                         (driver) => {
                                             io.to(users.get(driver.driverID)).emit(
-                                                "cancelPassenger",
+                                                "CancelTripByClient",
                                                 res.data.message
                                             );
-
+                                            console.log(users.get(data.userId), driver.tokenID);
+                                            io.to(users.get(data.userId)).emit(
+                                                "CancelTripByClient",
+                                                {
+                                                    status: true,
+                                                    message: "succes",
+                                                }
+                                            );
                                             var postData;
 
                                             if (driver.deviceType == 1) {
@@ -84,14 +92,10 @@ module.exports = async function (data) {
                             }
                         }
                     );
-
-                    io.to(users.get(data.userId)).emit("cancelPassenger", {
-                        status: true,
-                    });
                 } else {
-                    io.to(users.get(data.userId)).emit("CancelOnWay", {
+                    io.to(users.get(data.userId)).emit("CancelTripByClient", {
                         status: false,
-                        msg: "error in sql",
+                        message: "error in sql",
                     });
                 }
             });
@@ -143,10 +147,10 @@ module.exports = async function (data) {
                                 console.log(res.data);
                                 io.to(users.get(data.userId)).emit("CancelOnWay", {
                                     status: false,
-                                    msg: "error in sql",
+                                    message: "error in sql",
                                 });
                             } else {
-                                io.to(users.get(data.userId)).emit("CancelOnWay", {
+                                io.to(users.get(data.userId)).emit("CancelTripByClient", {
                                     status: true,
                                 });
                                 Pending.findOne({ tripID: data.tripMasterID }).then(
@@ -210,9 +214,9 @@ module.exports = async function (data) {
                             }
                         });
                     } catch (error) {
-                        io.to(users.get(data.userId)).emit("CancelOnWay", {
+                        io.to(users.get(data.userId)).emit("CancelTripByClient", {
                             status: false,
-                            msg: "error in mongodb",
+                            message: "error in mongodb",
                         });
                     }
                 });

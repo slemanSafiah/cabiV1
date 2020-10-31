@@ -1,10 +1,7 @@
 const axios = require("axios");
-
 const DriverM = require("../models/Driver");
-const CategoryFareM = require("../models/CategoryFare");
 const TripM = require("../models/Trip");
 const Pending = require("../models/Pending");
-const DeliverySettingM = require("../models/DeliverySetting");
 var { driveTimeCalc, DistinationDuration } = require('../function');
 var {
     users,
@@ -26,7 +23,7 @@ module.exports = async function (data) {
     console.log("-------------------------------- this is the end");
     const tripArr = await TripM.findOne({ tripID: data.tripID });
     console.log(tripArr);
-    var tripCond = false;
+    const tripCond = false;
     if (tripArr != null) {
         for (let r = 0; r < tripArr.tripDrivers.length; r++) {
             if (tripArr.tripDrivers[r].driverID === data.driverID) {
@@ -36,7 +33,6 @@ module.exports = async function (data) {
         }
     }
     var user;
-    console.log(tripCond)
     if (tripCond === false) {
         console.log("uuuuuuuuuuuuuuuuu");
         await Pending.findOne({ tripID: data.tripID }).then(async (pe) => {
@@ -64,205 +60,227 @@ module.exports = async function (data) {
                     }
                 }
                 console.log(array);
-                // await DriverM.updateOne({driverID:data.driverID},{$set:{isBusy:true}}).then(
-                // async()=>{
-                await Pending.updateOne(
-                    { tripID: data.tripID },
-                    { $set: { drs: array } }
-                ).then(() => {
-                    Pending.findOne({ tripID: data.tripID }).then((saved1) => {
-                        TripM.findOne({ tripID: data.tripID }).then((savedTrip) => {
-                            DriverM.findOne({ driverID: saved.drs[idx].driverID }).then(
-                                async (savedDriver) => {
-                                    try {
-                                        var trip = savedTrip;
-                                        //console.log(saved1.drs, 'a7a');
-                                        for (let l = 0; l < saved1.drs.length; l++) {
-                                            if (saved1.drs[l].status !== 0) {
-                                                await DriverM.findOne({
-                                                    driverID: saved1.drs[l].driverID,
-                                                }).then((d) => {
-                                                    //console.log(d, 'dddddddd')
-                                                    trip.tripDrivers.push({
-                                                        driverID: d.driverID,
-                                                        requestStatus: saved1.drs[l].status,
-                                                        lat: d.location.coordinates[1],
-                                                        lng: d.location.coordinates[0],
-                                                        actionDate: d.updateLocationDate,
+                await DriverM.updateOne(
+                    { driverID: data.driverID },
+                    { $set: { isBusy: true } }
+                ).then(async () => {
+                    await Pending.updateOne(
+                        { tripID: data.tripID },
+                        { $set: { drs: array } }
+                    ).then(() => {
+                        Pending.findOne({ tripID: data.tripID }).then((saved1) => {
+                            TripM.findOne({ tripID: data.tripID }).then((savedTrip) => {
+                                DriverM.findOne({ driverID: saved.drs[idx].driverID }).then(
+                                    async (savedDriver) => {
+                                        try {
+                                            var trip = savedTrip;
+                                            //console.log(saved1.drs, 'a7a');
+                                            for (let l = 0; l < saved1.drs.length; l++) {
+                                                if (saved1.drs[l].status !== 0) {
+                                                    await DriverM.findOne({
+                                                        driverID: saved1.drs[l].driverID,
+                                                    }).then((d) => {
+                                                        //console.log(d, 'dddddddd')
+                                                        trip.tripDrivers.push({
+                                                            driverID: d.driverID,
+                                                            requestStatus: saved1.drs[l].status,
+                                                            lat: d.location.coordinates[1],
+                                                            lng: d.location.coordinates[0],
+                                                            actionDate: d.updateLocationDate,
+                                                        });
                                                     });
-                                                });
-                                            }
-                                        }
-                                        trip.tripStatusId = 3;
-                                        //console.log(trip, "trip");
-                                        console.log("beforeTrip");
-                                        const data19 = {
-                                            status:
-                                                savedDriver.isOnline === true &&
-                                                    savedDriver.isBusy == false
-                                                    ? 1
-                                                    : savedDriver.isOnline == true &&
-                                                        savedDriver.isBusy == true
-                                                        ? 2
-                                                        : savedDriver.isOnline == false
-                                                            ? 3
-                                                            : 0,
-                                            driverID: savedDriver.driverID,
-                                            location: savedDriver.location,
-                                            categoryCarTypeID: savedDriver.categoryCarTypeID,
-                                            phoneNumber: savedDriver.phoneNumber,
-                                            idNo: savedDriver.idNo,
-                                            driverNameAr: savedDriver.driverNameAr,
-                                            driverNameEn: savedDriver.driverNameEn,
-                                            modelNameAr: savedDriver.modelNameAr,
-                                            modelNameEn: savedDriver.modelNameEn,
-                                            colorNameAr: savedDriver.colorNameAr,
-                                            colorNameEn: savedDriver.colorNameEn,
-                                            carImage: savedDriver.carImage,
-                                            driverImage: savedDriver.driverImage,
-                                            updateLocationDate: savedDriver.updateLocationDate,
-                                            trip: savedDriver.isBusy ? savedDriver.busyTrip : "",
-                                        };
-                                        //console.log("data", data);
-                                        admins.forEach((admin) => {
-                                            io.to(admin).emit("trackAdmin", data19);
-                                            io.to(admin).emit("trackCount");
-                                        });
-                                        await TripM.updateOne(
-                                            { tripID: trip.tripID },
-                                            {
-                                                $set: {
-                                                    tripStatusId: trip.tripStatusId,
-                                                    tripDrivers: trip.tripDrivers,
-                                                },
-                                            }
-                                        ).then(() => {
-                                            console.log("before");
-                                            TripM.findOne({ tripID: trip.tripID }).then((savedTr) => {
-                                                console.log(savedTr, "after");
-                                                try {
-                                                    axios({
-                                                        method: "post",
-                                                        url:
-                                                            "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                                        data: savedTr,
-                                                        headers: {
-                                                            Authorization: `Bearer ${saved1.loginToken}`,
-                                                            "Content-Type": "application / json",
-                                                        },
-                                                    }).then(async (res) => {
-                                                        console.log("ewewrwerwerw", res.data);
-                                                        if (res.data.status) {
-                                                            io.to(users.get(savedDriver.driverID)).emit(
-                                                                "success",
-                                                                {
-                                                                    status: true,
-                                                                    condition: true,
-                                                                    passengerName: res.data.data.passengerName,
-                                                                    passengerMobile:
-                                                                        res.data.data.passengerMobile,
-                                                                    passengerImage:
-                                                                        res.data.data.passengerImage,
-                                                                    passengerRate: res.data.data.passengerRate,
-                                                                }
-                                                            );
-
-                                                            var comeInClock = await driveTimeCalc(
-                                                                0,
-                                                                saved.reachTime,
-                                                                savedDriver.Language
-                                                            );
-                                                            var obj = res.data.data;
-                                                            obj.lat = savedDriver.location.coordinates[1];
-                                                            obj.lng = savedDriver.location.coordinates[0];
-                                                            obj.comeIn = "" + saved.reachTime;
-                                                            obj.comeInClock = "" + comeInClock;
-                                                            obj.tripCost = saved.tripCost;
-                                                            obj.status = 1;
-                                                            console.log("trippppppppp", obj);
-                                                            console.log(users.get(user), user);
-                                                            io.to(users.get(user)).emit("tripInfo", obj);
-
-                                                            var postData;
-
-                                                            if (saved1.deviceType == 1) {
-                                                                // IOS
-                                                                postData = {
-                                                                    data: {
-                                                                        PushType: "3",
-                                                                        PushTitle:
-                                                                            saved1.Language == "ar"
-                                                                                ? " الكابتن في الطريق إليك"
-                                                                                : "Your Captain on the way",
-                                                                    },
-                                                                    notification: {
-                                                                        body:
-                                                                            saved1.Language == "ar"
-                                                                                ? `الكابتن${res.data.data.driverNameAr} في طريقه إليك بمركبة ${res.data.data.Model} ، رقم لوحة ${res.data.data.taxiNumber}`
-                                                                                : `Captain${res.data.data.driverNameEn} is on his way in a ${res.data.data.Model} plate number ${res.data.data.taxiNumber}`,
-                                                                        sound: "default",
-                                                                    },
-                                                                };
-                                                            } else if (saved1.deviceType == 2) {
-                                                                // Andriod
-                                                                postData = {
-                                                                    data: {
-                                                                        PushType: "3",
-                                                                        PushTitle:
-                                                                            saved1.Language == "ar"
-                                                                                ? " الكابتن في الطريق إليك"
-                                                                                : "Your Captain on the way",
-                                                                        PushMessage:
-                                                                            saved1.Language == "ar"
-                                                                                ? `الكابتن${res.data.data.driverNameAr} في طريقه إليك بمركبة ${res.data.data.Model} ، رقم لوحة ${res.data.data.taxiNumber}`
-                                                                                : `Captain${res.data.data.driverNameEn} is on his way in a ${res.data.data.Model} plate number ${res.data.data.taxiNumber}`,
-                                                                        content_available: "true",
-                                                                        priority: "high",
-                                                                    },
-                                                                };
-                                                            }
-                                                            admin
-                                                                .messaging()
-                                                                .sendToDevice(
-                                                                    saved1.registrationToken,
-                                                                    postData,
-                                                                    notification_options
-                                                                );
-
-                                                            console.log(
-                                                                users.get(saved.userID),
-                                                                "iiiiiiiiiii",
-                                                                saved.userID
-                                                            );
-                                                        } else if (!res || res.data.status === false) {
-                                                            console.log(123);
-                                                            io.to(users.get(savedDriver.driverID)).emit(
-                                                                "success",
-                                                                {
-                                                                    status: false,
-                                                                    condition: true,
-                                                                }
-                                                            );
-
-                                                            io.to(users.get(user)).emit("tripInfo", {
-                                                                status: 0,
-                                                            });
-                                                        }
-                                                    });
-                                                } catch (error) {
-                                                    console.log("abc");
                                                 }
+                                            }
+                                            trip.tripStatusId = 3;
+                                            //console.log(trip, "trip");
+                                            console.log("beforeTrip");
+                                            const data19 = {
+                                                status:
+                                                    savedDriver.isOnline === true &&
+                                                        savedDriver.isBusy == false
+                                                        ? 1
+                                                        : savedDriver.isOnline == true &&
+                                                            savedDriver.isBusy == true
+                                                            ? 2
+                                                            : savedDriver.isOnline == false
+                                                                ? 3
+                                                                : 0,
+                                                driverID: savedDriver.driverID,
+                                                location: savedDriver.location,
+                                                categoryCarTypeID: savedDriver.categoryCarTypeID,
+                                                phoneNumber: savedDriver.phoneNumber,
+                                                idNo: savedDriver.idNo,
+                                                driverNameAr: savedDriver.driverNameAr,
+                                                driverNameEn: savedDriver.driverNameEn,
+                                                modelNameAr: savedDriver.modelNameAr,
+                                                modelNameEn: savedDriver.modelNameEn,
+                                                colorNameAr: savedDriver.colorNameAr,
+                                                colorNameEn: savedDriver.colorNameEn,
+                                                carImage: savedDriver.carImage,
+                                                driverImage: savedDriver.driverImage,
+                                                updateLocationDate: savedDriver.updateLocationDate,
+                                                trip: savedDriver.isBusy ? savedDriver.busyTrip : "",
+                                            };
+                                            //console.log("data", data);
+                                            admins.forEach((admin) => {
+                                                socket.to(admin).emit("trackAdmin", data19);
+                                                socket.to(admin).emit("trackCount");
                                             });
-                                        });
-                                    } catch (error) {
-                                        console.log("haha");
+                                            await TripM.updateOne(
+                                                { tripID: trip.tripID },
+                                                {
+                                                    $set: {
+                                                        tripStatusId: trip.tripStatusId,
+                                                        tripDrivers: trip.tripDrivers,
+                                                    },
+                                                }
+                                            ).then(() => {
+                                                console.log("before");
+                                                TripM.findOne({ tripID: trip.tripID }).then(
+                                                    (savedTr) => {
+                                                        console.log(savedTr, "after");
+                                                        try {
+                                                            axios({
+                                                                method: "post",
+                                                                url:
+                                                                    "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                                                                data: savedTr,
+                                                                headers: {
+                                                                    Authorization: `Bearer ${saved1.loginToken}`,
+                                                                    "Content-Type": "application / json",
+                                                                },
+                                                            }).then(async (res) => {
+                                                                console.log("ewewrwerwerw", res.data);
+                                                                if (res.data.status) {
+                                                                    io.to(users.get(savedDriver.driverID)).emit(
+                                                                        "AcceptRejectTrip",
+                                                                        {
+                                                                            status: true,
+                                                                            condition: true,
+                                                                            passengerName:
+                                                                                res.data.data.passengerName,
+                                                                            passengerMobile:
+                                                                                res.data.data.passengerMobile,
+                                                                            passengerImage:
+                                                                                res.data.data.passengerImage,
+                                                                            passengerRate:
+                                                                                res.data.data.passengerRate,
+                                                                        }
+                                                                    );
+
+                                                                    var comeInClock = await driveTimeCalc(
+                                                                        0,
+                                                                        saved.reachTime,
+                                                                        savedDriver.Language
+                                                                    );
+                                                                    var obj = res.data.data;
+                                                                    obj.lat =
+                                                                        savedDriver.location.coordinates[1];
+                                                                    obj.lng =
+                                                                        savedDriver.location.coordinates[0];
+                                                                    obj.comeIn = "" + saved.reachTime;
+                                                                    obj.comeInClock = "" + comeInClock;
+                                                                    obj.tripCost = saved.tripCost;
+                                                                    obj.status = 1;
+                                                                    obj.message = "success";
+                                                                    console.log("trippppppppp", obj);
+                                                                    console.log(users.get(user), user);
+                                                                    io.to(users.get(user)).emit(
+                                                                        "DriverResponded",
+                                                                        obj
+                                                                    );
+
+                                                                    var postData;
+
+                                                                    if (saved1.deviceType == 1) {
+                                                                        // IOS
+                                                                        postData = {
+                                                                            data: {
+                                                                                PushType: "3",
+                                                                                PushTitle:
+                                                                                    saved1.Language == "ar"
+                                                                                        ? " الكابتن في الطريق إليك"
+                                                                                        : "Your Captain on the way",
+                                                                            },
+                                                                            notification: {
+                                                                                body:
+                                                                                    saved1.Language == "ar"
+                                                                                        ? `الكابتن${res.data.data.driverNameAr} في طريقه إليك بمركبة ${res.data.data.Model} ، رقم لوحة ${res.data.data.taxiNumber}`
+                                                                                        : `Captain${res.data.data.driverNameEn} is on his way in a ${res.data.data.Model} plate number ${res.data.data.taxiNumber}`,
+                                                                                sound: "default",
+                                                                            },
+                                                                        };
+                                                                    } else if (saved1.deviceType == 2) {
+                                                                        // Andriod
+                                                                        postData = {
+                                                                            data: {
+                                                                                PushType: "3",
+                                                                                PushTitle:
+                                                                                    saved1.Language == "ar"
+                                                                                        ? " الكابتن في الطريق إليك"
+                                                                                        : "Your Captain on the way",
+                                                                                PushMessage:
+                                                                                    saved1.Language == "ar"
+                                                                                        ? `الكابتن${res.data.data.driverNameAr} في طريقه إليك بمركبة ${res.data.data.Model} ، رقم لوحة ${res.data.data.taxiNumber}`
+                                                                                        : `Captain${res.data.data.driverNameEn} is on his way in a ${res.data.data.Model} plate number ${res.data.data.taxiNumber}`,
+                                                                                content_available: "true",
+                                                                                priority: "high",
+                                                                            },
+                                                                        };
+                                                                    }
+                                                                    admin
+                                                                        .messaging()
+                                                                        .sendToDevice(
+                                                                            saved1.registrationToken,
+                                                                            postData,
+                                                                            notification_options
+                                                                        );
+
+                                                                    console.log(
+                                                                        users.get(saved.userID),
+                                                                        "iiiiiiiiiii",
+                                                                        saved.userID
+                                                                    );
+                                                                } else if (
+                                                                    !res ||
+                                                                    res.data.status === false
+                                                                ) {
+                                                                    console.log(123);
+                                                                    io.to(users.get(savedDriver.driverID)).emit(
+                                                                        "AcceptRejectTrip",
+                                                                        {
+                                                                            status: false,
+                                                                            condition: true,
+                                                                        }
+                                                                    );
+
+                                                                    io.to(users.get(user)).emit(
+                                                                        "DriverResponded",
+                                                                        {
+                                                                            status: 0,
+                                                                            message:
+                                                                                saved1.Language == "en"
+                                                                                    ? "sorry,there is no available driver"
+                                                                                    : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                        }
+                                                                    );
+                                                                }
+                                                            });
+                                                        } catch (error) {
+                                                            console.log("abc");
+                                                        }
+                                                    }
+                                                );
+                                            });
+                                        } catch (error) {
+                                            console.log("haha");
+                                        }
                                     }
-                                }
-                            );
+                                );
+                            });
                         });
                     });
                 });
-                //})
             });
         } else {
             console.log("adadddddddddad");
@@ -279,7 +297,7 @@ module.exports = async function (data) {
                     { tripID: data.tripID },
                     { $set: { drs: array } }
                 ).then(() => {
-                    io.to(users.get(data.driverID)).emit("success", {
+                    io.to(users.get(data.driverID)).emit("AcceptRejectTrip", {
                         status: true,
                         condition: false,
                     });
@@ -333,9 +351,16 @@ module.exports = async function (data) {
                                                     }).then((res) => {
                                                         if (!res || res.data.status === false) {
                                                             console.log(res.data);
-                                                            io.to(
-                                                                users.get(pendingTrip2.userID)
-                                                            ).emit("tripInfo", { status: 0 });
+                                                            io.to(users.get(pendingTrip2.userID)).emit(
+                                                                "DriverResponded",
+                                                                {
+                                                                    status: 0,
+                                                                    message:
+                                                                        pendingTrip2.Language == "en"
+                                                                            ? "sorry,there is no available driver"
+                                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                }
+                                                            );
                                                         } else {
                                                             console.log("qqqqqqqqqqqqttttttttttttt");
 
@@ -359,7 +384,7 @@ module.exports = async function (data) {
                                                                         sound: "default",
                                                                     },
                                                                 };
-                                                            } else if (saved1.deviceType == 2) {
+                                                            } else if (pendingTrip2.deviceType == 2) {
                                                                 // Andriod
                                                                 postData = {
                                                                     data: {
@@ -385,9 +410,16 @@ module.exports = async function (data) {
                                                                     notification_options
                                                                 );
 
-                                                            io.to(
-                                                                users.get(pendingTrip2.userID)
-                                                            ).emit("tripInfo", { status: 2 });
+                                                            io.to(users.get(pendingTrip2.userID)).emit(
+                                                                "DriverResponded",
+                                                                {
+                                                                    status: 2,
+                                                                    message:
+                                                                        pendingTrip2.Language == "en"
+                                                                            ? "sorry,there is no available driver"
+                                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                }
+                                                            );
                                                         }
                                                     });
                                                 } catch (error) {
@@ -455,9 +487,9 @@ module.exports = async function (data) {
                                         var from_to = updatedPending;
                                         from_to.reachTime = reachTime;
                                         from_to.arriveTime = arriveTime;
-                                        io
+                                        socket
                                             .to(users.get(driver.driverID))
-                                            .emit("tripInfo", from_to);
+                                            .emit("NewTripInfo", from_to);
 
                                         await Pending.findOne({ tripID: data.tripID }).then(
                                             async (p1) => {
@@ -574,8 +606,13 @@ module.exports = async function (data) {
                                                                                                     users.get(
                                                                                                         updatedPending3.userID
                                                                                                     )
-                                                                                                ).emit("tripInfo", {
+                                                                                                ).emit("DriverResponded", {
                                                                                                     status: 0,
+                                                                                                    message:
+                                                                                                        updatedPending3.Language ==
+                                                                                                            "en"
+                                                                                                            ? "sorry,there is no available driver"
+                                                                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
                                                                                                 });
                                                                                             } else {
                                                                                                 var postData;
@@ -639,8 +676,13 @@ module.exports = async function (data) {
                                                                                                     users.get(
                                                                                                         updatedPending3.userID
                                                                                                     )
-                                                                                                ).emit("tripInfo", {
+                                                                                                ).emit("DriverResponded", {
                                                                                                     status: 2,
+                                                                                                    message:
+                                                                                                        updatedPending3.Language ==
+                                                                                                            "en"
+                                                                                                            ? "sorry,there is no available driver"
+                                                                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
                                                                                                 });
                                                                                             }
                                                                                         });
@@ -725,7 +767,7 @@ module.exports = async function (data) {
                                                                             from_to.reachTime = reachTime;
                                                                             from_to.arriveTime = arriveTime;
                                                                             io.to(users.get(dr.driverID)).emit(
-                                                                                "tripInfo",
+                                                                                "NewTripInfo",
                                                                                 from_to
                                                                             );
                                                                             await Pending.findOne({
@@ -837,8 +879,15 @@ module.exports = async function (data) {
                                                                                                                                 pen115.userID
                                                                                                                             )
                                                                                                                         ).emit(
-                                                                                                                            "tripInfo",
-                                                                                                                            { status: 0 }
+                                                                                                                            "DriverResponded",
+                                                                                                                            {
+                                                                                                                                status: 0,
+                                                                                                                                message:
+                                                                                                                                    pen115.Language ==
+                                                                                                                                        "en"
+                                                                                                                                        ? "sorry,there is no available driver"
+                                                                                                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                                                                            }
                                                                                                                         );
                                                                                                                     } else {
                                                                                                                         var postData;
@@ -908,8 +957,15 @@ module.exports = async function (data) {
                                                                                                                                 pen115.userID
                                                                                                                             )
                                                                                                                         ).emit(
-                                                                                                                            "tripInfo",
-                                                                                                                            { status: 2 }
+                                                                                                                            "DriverResponded",
+                                                                                                                            {
+                                                                                                                                status: 2,
+                                                                                                                                message:
+                                                                                                                                    pen115.Language ==
+                                                                                                                                        "en"
+                                                                                                                                        ? "sorry,there is no available driver"
+                                                                                                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                                                                                            }
                                                                                                                         );
                                                                                                                     }
                                                                                                                 });

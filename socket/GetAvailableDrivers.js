@@ -6,7 +6,7 @@ var { users, userinterval, io } = require('../server');
 var { DistinationDuration } = require('../function');
 
 module.exports = async function (data) {
-    //console.log(data);
+    // console.log(data);
     const id = uuidv4();
     userinterval.set(data.userid, id);
     try {
@@ -52,22 +52,22 @@ module.exports = async function (data) {
                             ? -1
                             : (time[0].duration.value / 60).toFixed(),
                     status: time[0].duration == undefined ? false : true,
-                    msg: time[0].duration == undefined ? "error google api" : "",
+                    message: time[0].duration == undefined ? "error google api" : "",
                 };
-                //console.log(data1);
+                // console.log(users);
                 let user_id = users.get(data.userid);
-                // console.log(user_id);
-                io.to(user_id).emit("getavailable", data1);
+                // console.log(user_id,"oioi");
+                io.to(user_id).emit("GetAvailableDrivers", data1);
             } else {
                 const data1 = {
                     drivers: [],
                     time: -1,
                     status: false,
-                    msg: "no driver available",
+                    message: "no driver available",
                 };
                 let user_id = users.get(data.userid);
                 // console.log(user_id);
-                io.to(user_id).emit("getavailable", data1);
+                io.to(user_id).emit("GetAvailableDrivers", data1);
             }
         });
         const fun = () => {
@@ -120,7 +120,7 @@ module.exports = async function (data) {
                                 ? -1
                                 : (time[0].duration.value / 60).toFixed(),
                         status: time[0].duration == undefined ? false : true,
-                        msg: time[0].duration == undefined ? "error google api" : "",
+                        message: time[0].duration == undefined ? "error google api" : "",
                     };
                     if (
                         users.get(data.userid) != undefined &&
@@ -129,14 +129,14 @@ module.exports = async function (data) {
                         let user_id = users.get(data.userid);
                         //console.log(user_id);
 
-                        io.to(user_id).emit("getavailable", data1);
+                        io.to(user_id).emit("GetAvailableDrivers", data1);
                     }
                 } else {
                     const data1 = {
                         drivers: [],
                         time: -1,
                         status: false,
-                        msg: "no driver available",
+                        message: "no driver available",
                     };
                     if (
                         users.get(data.userid) != undefined &&
@@ -145,7 +145,7 @@ module.exports = async function (data) {
                         let user_id = users.get(data.userid);
                         // console.log(user_id);
 
-                        io.to(user_id).emit("getavailable", data1);
+                        io.to(user_id).emit("GetAvailableDrivers", data1);
                     }
                 }
                 //console.log(data1.time)
@@ -156,9 +156,9 @@ module.exports = async function (data) {
         console.log(err);
         let user_id = users.get(data.userid);
         // console.log(user_id);
-        io.to(user_id).emit("getavailable", {
+        io.to(user_id).emit("GetAvailableDrivers", {
             status: false,
-            msg: "location out of bounds",
+            message: "location out of bounds",
         });
     }
 }
