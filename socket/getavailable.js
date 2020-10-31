@@ -1,7 +1,9 @@
 const DriverM = require("../models/Driver");
 const { v4: uuidv4 } = require("uuid");
+const axios = require("axios");
 
 var { users, userinterval, io } = require('../server');
+var { DistinationDuration } = require('../function');
 
 module.exports = async function (data) {
     //console.log(data);
@@ -160,20 +162,3 @@ module.exports = async function (data) {
         });
     }
 }
-
-const DistinationDuration = async (originlat, originlong, destinlong, destinlat) => {
-    var resp = await axios.get(
-        "https://maps.googleapis.com/maps/api/distancematrix/json?origins=" +
-        originlat +
-        "," +
-        originlong +
-        "&destinations=" +
-        destinlat +
-        "," +
-        destinlong +
-        "&key=" +
-        google_Key
-    );
-    // console.log(resp);
-    return resp.data.rows[0].elements;
-};
