@@ -12,7 +12,7 @@ module.exports = async function (data) {
             console.log(resp);
             await axios({
                 method: "post",
-                url: `devmachine.taketosa.com/api/Trip/CancelTripPassenger?tripMasterID=${data.tripMasterID}&cancelReasonID=${data.cancelReasonID}`,
+                url: `https://devmachine.taketosa.com/api/Trip/CancelTripPassenger?tripMasterID=${data.tripMasterID}&cancelReasonID=${data.cancelReasonID}`,
                 headers: {
                     "Content-Type": "application / json",
                     Authorization: "Bearer " + data.token,

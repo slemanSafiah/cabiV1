@@ -796,15 +796,15 @@ module.exports = async function (data) {
                         Pending.findOne({ tripID: trip.tripID }).then(async (res1) => {
                             trip.tripStatusId = 2;
                             trip.tripDrivers = [];
-                            await trip.save().then((res) => {
-                                console.log(res);
+                            await trip.save().then(async (res) => {
+                                const rs = await Pending.findOne({ tripID: trip.tripID });
                                 try {
                                     console.log(res1, "yup");
                                     axios({
                                         method: "post",
                                         url:
                                             "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                        data: res,
+                                        data: rs,
                                         headers: {
                                             Authorization: `Bearer ${res1.loginToken}`,
                                             "Content-Type": "application / json",
