@@ -3,9 +3,8 @@ const mongoose = require("mongoose");
 const admin = require("firebase-admin");
 const http = require("http");
 const cors = require("cors");
-const Sentry = require("@sentry/node");
-const Tracing = require("@sentry/tracing");
 var serviceAccount = require("./cabi-app-firebase-adminsdk-4cy4f-c6feddd07b.json");
+const axios = require("axios");
 
 const DriverM = require("./models/Driver");
 const socketIo = require("socket.io");
@@ -16,25 +15,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-Sentry.init({
-  dsn: "https://c3a30557318d4219a439dee3aefdf6bb@o469490.ingest.sentry.io/5499056",
-  maxBreadcrumbs: 50,
-  debug: true,
-});
-
-// try {
-//   doSomeFunction();
-// } catch (error) {
-//   Sentry.captureException(error);
-// }
-
-
 var users = new Map();
 var admins = new Map();
 var userinterval = new Map();
 var listinterval = new Map();
 var trackinterval = new Map();
-module.exports.sentry = Sentry;
+
 module.exports.google_Key = "AIzaSyBS7IT1kU9vqhmespj2UB32HDkez6v41y4";
 module.exports.entitle = "Congratulation, you get a new trip";
 module.exports.artitle = " تهانينا، لقد حصلت على طلب توصيل زبون";
@@ -58,10 +44,12 @@ module.exports.notification_options = {
   timeToLive: 60 * 60 * 24,
 };
 
-mongoose.connect(process.env.DB_CONNECTION, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-},
+mongoose.connect(
+  process.env.DB_CONNECTION,
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  },
   () => console.log("connected to DB")
 );
 
@@ -81,6 +69,8 @@ var IsBusy = require("./socket/IsBusy");
 var IsOnline = require("./socket/IsOnline");
 var NewTripRequest = require("./socket/NewTripRequest");
 var UpdateLocation = require("./socket/Updatelocation");
+var EndTrip = require("./socket/EndTrip");
+
 const { models } = require("mongoose");
 
 const server = http.createServer(app);
@@ -122,32 +112,8 @@ io.on("connection", (socket) => {
     ChangeTripStatus(data, socket, io);
   });
 
-  socket.on("Finish", async (data) => {
-    try {
-      await Pending.findOne({ tripID: data.tripID })
-        .then((trip) => {
-          io.to(users.get(trip.userID)).emit("Finish", {
-            tripID: data.tripID,
-            status: true,
-          });
-          socket.emit("Finish", { status: true });
-        })
-        .then(async (re) => {
-          await DriverM.updateOne(
-            {
-              driverID: data.driverID,
-            },
-            {
-              $set: {
-                isBusy: false,
-              },
-            }
-          );
-        });
-    } catch {
-      socket.emit("Finish", { status: false, message: "error in mongodb" });
-
-    }
+  socket.on("EndTrip", async (data) => {
+    EndTrip(data, socket, io);
   });
 
   socket.on("UpdateLocation", (data) => {
@@ -216,17 +182,26 @@ io.on("connection", (socket) => {
     admins.delete(number);
     console.log("admin disconnected");
   });
+
+  socket.on("ClearInterval", async (id) => {
+
+  });
+
 });
 
 app.post("/driver/updateLocation", async (req, res) => {
-  Sentry.captureMessage('update Location');
   console.log(req.query);
   var newLat = req.query.lat;
   var newLong = req.query.lng;
   try {
-    DriverM.findOne({ driverID: req.query.driverID, })
+    DriverM.findOne({
+      driverID: req.query.driverID,
+    })
       .then((driver) =>
-        DriverM.updateOne({ driverID: req.query.driverID, },
+        DriverM.updateOne(
+          {
+            driverID: req.query.driverID,
+          },
           {
             $set: {
               oldLocation: {
@@ -285,9 +260,7 @@ app.post("/driver/updateLocation", async (req, res) => {
         })
       )
       .catch((err) => console.log(err));
-  }
-  catch (error) {
-    Sentry.captureException(error);
+  } catch (error) {
     console.log("error");
     res.json({
       sucess: 0,
@@ -295,9 +268,6 @@ app.post("/driver/updateLocation", async (req, res) => {
     });
   }
 });
-
-
-
 
 const Port = process.env.Port || 5000;
 server.listen(Port, () => {

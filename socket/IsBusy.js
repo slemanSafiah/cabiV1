@@ -1,6 +1,7 @@
 const DriverM = require("../models/Driver");
-var {users, admins, io} = require("../server");
-const axios = require("axios");
+var {
+admins
+} = require("../server");
 
 module.exports = async function (data, socket, io) {
   //console.log("is busy ");

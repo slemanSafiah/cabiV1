@@ -1,9 +1,9 @@
 const DriverM = require("../models/Driver");
-var {users, admins, io} = require("../server");
+var {users, admins} = require("../server");
 const axios = require("axios");
 
 module.exports = async function (data, socket, io) {
-  console.log("is online ", data.driverID);
+  console.log("is online ",data.driverID);
   try {
     const driver = await DriverM.findOne({
       driverID: data.driverID,
@@ -16,14 +16,14 @@ module.exports = async function (data, socket, io) {
         {
           $set: {
             isOnline: true,
-            isBusy: false,
-            //tokenID: data.tokenID,
+            isBusy:false,
+            // tokenID: data.tokenID,
             deviceType: data.deviceType,
             Language: data.Language,
           },
         }
       ).then(() => {
-        socket.emit("IsOnline", {status: true});
+        socket.emit("IsOnline", {status: true,message:"success"});
         //console.log(driver);
         const ISONLINE = true;
         const data1 = {

@@ -7,7 +7,7 @@ var {users, notification_options} = require("../server");
 
 module.exports = async function (data, socket, io) {
   try {
-    console.log(data, "kljlkjlk");
+    console.log(data,"kljlkjlk");
     await Driver.findOne({driverID: data.driverID}).then(async (driver) => {
       await Pending.findOne({tripID: data.tripId}).then(async (trip) => {
         console.log(users.get(trip.userID), trip.userID);
@@ -34,12 +34,12 @@ module.exports = async function (data, socket, io) {
                       : res.data.data.titleEn,
                 });
               }
-              console.log(users.get(data.driverID), "kjkljlkj");
+              console.log(users.get(data.driverID),"kjkljlkj")
               socket.emit("ChangeTripStatus", {
                 tripID: data.tripId,
                 status: true,
                 data: res.data.data,
-                message: "success",
+                message:'success'
               });
 
               var postData;

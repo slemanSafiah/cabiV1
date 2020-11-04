@@ -31,7 +31,7 @@
             genderRequest:2,
             isWalletPay:false,deviceType:2,lat:30.12,long:31.12,userid:5
         }
-        socket.emit("GetAvailableDrivers",data)
+        socket.emit("NewTripRequest",data)
         socket.on("GetAvailableDrivers",data=>alert(
             "l;lk;lk;"
         ))

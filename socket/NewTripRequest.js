@@ -15,10 +15,10 @@ var {
   nodrivertitlear,
   nodrivertitleen,
   notification_options,
-  listinterval,
+  listinterval, admins
 } = require("../server");
 
-var {DistinationDuration, tripCost, driveTimeCalc} = require("../function");
+var { DistinationDuration, tripCost, driveTimeCalc } = require("../function");
 
 module.exports = async function (data, socket, io) {
   var discountType = -1;
@@ -29,8 +29,8 @@ module.exports = async function (data, socket, io) {
       return [...listinterval].find(([key, val]) => val == data.userId)[0];
     };
     const client = getKey();
-    listinterval.delete(client);
-  } catch {}
+    listinterval.delete(client)
+  } catch { }
   const config = {
     method: "post",
     url: `http://devmachine.taketosa.com/api/Trip/CheckPromoCode?promoCode=${data.promoCode}`,
@@ -46,7 +46,7 @@ module.exports = async function (data, socket, io) {
         var user_id = users.get(data.userId);
         discountValue = -1;
         console.log(user_id);
-        socket.emit("promoCode", {
+        io.to(user_id).emit("promoCode", {
           message: res.data.message,
         });
       } else if (res.data.data.isValid) {
@@ -76,8 +76,8 @@ module.exports = async function (data, socket, io) {
       isBusy: false,
       isOnline: true,
       isDeleted: false,
-      genderRequest: data.genderRequest,
-      categoryCarTypeID: data.categoryCarTypeID,
+      //genderRequest: data.genderRequest,
+      //categoryCarTypeID: data.categoryCarTypeID,
     }).then(async (drivers) => {
       var Trip_ID;
 
@@ -105,7 +105,7 @@ module.exports = async function (data, socket, io) {
         if (res.data.status) {
           Trip_ID = res.data.data.tripMasterId;
           console.log(res.data.data.tripMasterId);
-          socket.emit("NewTripRequest", {tripId: Trip_ID});
+          socket.emit("NewTripRequest", { tripId: Trip_ID })
           console.log("get drivers", drivers);
           var dr = [];
           const trip = new TripM({
@@ -153,8 +153,7 @@ module.exports = async function (data, socket, io) {
             dropoffLat,
             data.categoryCarTypeID,
             discountType,
-            discountValue,
-            driverTime
+            discountValue, driverTime
           );
 
           from_to.tripCost = tripC;
@@ -180,7 +179,10 @@ module.exports = async function (data, socket, io) {
               drivers[0].location.coordinates[0],
               drivers[0].location.coordinates[1]
             );
-
+            from_to.passengerRate = res.data.data.passengerRate
+            from_to.passengerName = res.data.data.passengerName
+            from_to.passengerMobile = res.data.data.passengerMobile
+            from_to.passengerImage = res.data.data.passengerImage
             from_to.reachTime = (reachTime[0].duration.value / 60).toFixed();
             from_to.arriveTime = driveTimeCalc(
               0,
@@ -205,7 +207,8 @@ module.exports = async function (data, socket, io) {
                 postData = {
                   data: {
                     PushType: "1",
-                    PushTitle: drivers[0].Language == "ar" ? artitle : entitle,
+                    PushTitle:
+                      drivers[0].Language == "ar" ? artitle : entitle,
                   },
                   notification: {
                     body: drivers[0].Language == "ar" ? armes : enmes,
@@ -220,10 +223,13 @@ module.exports = async function (data, socket, io) {
                     PushTitle:
                       drivers[0].Language == "ar"
                         ? artitle
-                        : entitle + '",' + '"PushMessage":"' + data.Language ==
+                        : entitle +
+                          '",' +
+                          '"PushMessage":"' +
+                          data.Language ==
                           "ar"
-                        ? armes
-                        : enmes,
+                          ? armes
+                          : enmes,
                     content_available: "true",
                     priority: "high",
                   },
@@ -259,7 +265,12 @@ module.exports = async function (data, socket, io) {
                     loginToken: data.token,
                     deviceType: data.deviceType,
                     Language: data.Language,
-                  });
+                    passengerName: res.data.data.passengerName
+                    , passengerMobile: res.data.data.passengerMobile,
+                    passengerImage: res.data.data.passengerImage,
+                    passengerRate: res.data.data.passengerRate
+
+                  })
                   //console.log("tttttttttttttttttttt",pending)
                   const savedPending = await pending.save();
                   const savedTrip = await trip.save();
@@ -267,17 +278,17 @@ module.exports = async function (data, socket, io) {
                     users.get(drivers[0].driverID),
                     drivers[0].driverID
                   );
-                  socket
+                  io
                     .to(users.get(drivers[0].driverID))
                     .emit("NewTripInfo", from_to);
-                  await Pending.findOne({tripID: Trip_ID}).then(async (p) => {
+                  await Pending.findOne({ tripID: Trip_ID }).then(async (p) => {
                     //console.log(p);
                     let ar = p.drs;
                     console.log(ar[0], p.drs);
                     ar[0].status = -1;
                     await Pending.updateOne(
-                      {tripID: Trip_ID},
-                      {$set: {drs: ar}}
+                      { tripID: Trip_ID },
+                      { $set: { drs: ar } }
                     );
                     console.log(ar, "update to -1");
                   });
@@ -286,7 +297,7 @@ module.exports = async function (data, socket, io) {
 
                   let interval1 = setInterval(function () {
                     now++;
-                    Pending.findOne({tripID: Trip_ID}).then((pen107) => {
+                    Pending.findOne({ tripID: Trip_ID }).then((pen107) => {
                       console.log(pen107.drs[0], Trip_ID);
                       if (pen107.drs[0].status !== -1) {
                         clearInterval(interval1);
@@ -298,18 +309,79 @@ module.exports = async function (data, socket, io) {
                     }
                     console.log(now);
                     if (now === 20) {
-                      Pending.findOne({tripID: Trip_ID}).then(async (saved) => {
-                        if (saved.drs[0].status === -1) {
-                          let array = saved.drs;
-                          array[0].status = 3;
-                          await Pending.updateOne(
-                            {tripID: Trip_ID},
-                            {$set: {drs: array}}
-                          );
-                        }
-                        if (saved.drs.length === 1) {
-                          DriverM.findOne({driverID: saved.drs[0].driverID})
-                            .then(async (savedDriver) => {
+                      Pending.findOne({ tripID: Trip_ID }).then(
+                        async (saved) => {
+                          if (saved.drs[0].status === -1) {
+                            let array = saved.drs;
+                            array[0].status = 3;
+                            await Pending.updateOne(
+                              { tripID: Trip_ID },
+                              { $set: { drs: array } }
+                            );
+                          }
+                          if (saved.drs.length === 1) {
+                            DriverM.findOne({ driverID: saved.drs[0].driverID })
+                              .then(async (savedDriver) => {
+                                trip.tripDrivers.push({
+                                  driverID: savedDriver.driverID,
+                                  requestStatus: 3,
+                                  lat: savedDriver.location.coordinates[1],
+                                  lng: savedDriver.location.coordinates[0],
+                                  actionDate: new Date(),
+                                });
+
+                                trip.tripStatusId = 2;
+                                await TripM.updateOne(
+                                  { tripID: trip.tripID },
+                                  {
+                                    $set: {
+                                      tripStatusId: trip.tripStatusId,
+                                      tripDrivers: trip.tripDrivers,
+                                    },
+                                  }
+                                );
+                              })
+                              .then(async () => {
+                                await TripM.findOne({
+                                  tripID: trip.tripID,
+                                }).then((savedTr) => {
+                                  console.log(savedTr, "627");
+                                  try {
+                                    console.log(data);
+                                    axios({
+                                      method: "post",
+                                      url:
+                                        "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                                      data: savedTr,
+                                      headers: {
+                                        Authorization: `Bearer ${data.token}`,
+                                        "Content-Type": "application / json",
+                                        "Accept-Language": data.Language,
+                                      },
+                                    }).then((res) => {
+                                      console.log(users.get(data.userId), data.userId, "uyuiyuiyiuyuiyiu")
+                                      io.to(users.get(data.userId)).emit(
+                                        "DriverResponded",
+                                        {
+                                          status: 2,
+                                          message:
+                                            saved.Language == "en"
+                                              ? "sorry,there is no available driver"
+                                              : "!عذراُ لا يوجد سائق متاح حالياً",
+                                        }
+                                      );
+
+                                      console.log("iiiiiii", res.data);
+                                    });
+                                  } catch (error) {
+                                    console.log("abc");
+                                  }
+                                });
+                              });
+                          } else if (saved.drs.length > 1) {
+                            DriverM.findOne({
+                              driverID: saved.drs[0].driverID,
+                            }).then(async (savedDriver) => {
                               trip.tripDrivers.push({
                                 driverID: savedDriver.driverID,
                                 requestStatus: 3,
@@ -320,7 +392,7 @@ module.exports = async function (data, socket, io) {
 
                               trip.tripStatusId = 2;
                               await TripM.updateOne(
-                                {tripID: trip.tripID},
+                                { tripID: Trip_ID },
                                 {
                                   $set: {
                                     tripStatusId: trip.tripStatusId,
@@ -328,440 +400,398 @@ module.exports = async function (data, socket, io) {
                                   },
                                 }
                               );
-                            })
-                            .then(async () => {
-                              await TripM.findOne({
-                                tripID: trip.tripID,
-                              }).then((savedTr) => {
-                                console.log(savedTr, "627");
-                                try {
-                                  console.log(data);
-                                  axios({
-                                    method: "post",
-                                    url:
-                                      "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                    data: savedTr,
-                                    headers: {
-                                      Authorization: `Bearer ${data.token}`,
-                                      "Content-Type": "application / json",
-                                      "Accept-Language": data.Language,
-                                    },
-                                  }).then((res) => {
-                                    console.log(
-                                      users.get(data.userId),
-                                      data.userId,
-                                      "uyuiyuiyiuyuiyiu"
-                                    );
-                                    io.to(users.get(data.userId)).emit(
-                                      "DriverResponded",
-                                      {
-                                        status: 2,
-                                        message:
-                                          saved.Language == "en"
-                                            ? "sorry,there is no available driver"
-                                            : "!عذراُ لا يوجد سائق متاح حالياً",
-                                      }
-                                    );
-
-                                    console.log("iiiiiii", res.data);
-                                  });
-                                } catch (error) {
-                                  console.log("abc");
-                                }
-                              });
-                            });
-                        } else if (saved.drs.length > 1) {
-                          DriverM.findOne({
-                            driverID: saved.drs[0].driverID,
-                          }).then(async (savedDriver) => {
-                            trip.tripDrivers.push({
-                              driverID: savedDriver.driverID,
-                              requestStatus: 3,
-                              lat: savedDriver.location.coordinates[1],
-                              lng: savedDriver.location.coordinates[0],
-                              actionDate: new Date(),
                             });
 
-                            trip.tripStatusId = 2;
-                            await TripM.updateOne(
-                              {tripID: Trip_ID},
-                              {
-                                $set: {
-                                  tripStatusId: trip.tripStatusId,
-                                  tripDrivers: trip.tripDrivers,
+                            var reachTime = await DistinationDuration(
+                              pickupLat,
+                              pickupLng,
+                              drivers[1].location.coordinates[0],
+                              drivers[1].location.coordinates[1]
+                            );
+
+                            from_to.reachTime = (
+                              reachTime[0].duration.value / 60
+                            ).toFixed();
+                            from_to.arriveTime = driveTimeCalc(
+                              0,
+                              from_to.reachTime,
+                              drivers[1].Language
+                            );
+
+                            var postData;
+
+                            if (drivers[1].deviceType == 1) {
+                              // IOS
+                              postData = {
+                                data: {
+                                  PushType: "1",
+                                  PushTitle:
+                                    drivers[1].Language == "ar"
+                                      ? artitle
+                                      : entitle,
                                 },
-                              }
-                            );
-                          });
-
-                          var reachTime = await DistinationDuration(
-                            pickupLat,
-                            pickupLng,
-                            drivers[1].location.coordinates[0],
-                            drivers[1].location.coordinates[1]
-                          );
-
-                          from_to.reachTime = (
-                            reachTime[0].duration.value / 60
-                          ).toFixed();
-                          from_to.arriveTime = driveTimeCalc(
-                            0,
-                            from_to.reachTime,
-                            drivers[1].Language
-                          );
-
-                          var postData;
-
-                          if (drivers[1].deviceType == 1) {
-                            // IOS
-                            postData = {
-                              data: {
-                                PushType: "1",
-                                PushTitle:
-                                  drivers[1].Language == "ar"
-                                    ? artitle
-                                    : entitle,
-                              },
-                              notification: {
-                                body:
-                                  drivers[1].Language == "ar" ? armes : enmes,
-                                sound: "default",
-                              },
-                            };
-                          } else if (drivers[1].deviceType == 2) {
-                            // Andriod
-                            postData = {
-                              data: {
-                                PushType: "1",
-                                PushTitle:
-                                  drivers[1].Language == "ar"
-                                    ? artitle
-                                    : entitle,
-                                PushMessage:
-                                  data.Language == "ar" ? armes : enmes,
-                                content_available: "true",
-                                priority: "high",
-                              },
-                            };
-                          }
-                          admin
-                            .messaging()
-                            .sendToDevice(
-                              drivers[1].tokenID,
-                              postData,
-                              notification_options
-                            );
-
-                          /////
-                          socket
-                            .to(users.get(drivers[1].driverID))
-                            .emit("NewTripInfo", from_to);
-
-                          await Pending.findOne({tripID: Trip_ID}).then(
-                            async (p12) => {
-                              console.log(p12);
-                              let ar = p12.drs;
-                              ar[1].status = -1;
-                              await Pending.updateOne(
-                                {tripID: trip.tripID},
-                                {$set: {drs: ar}}
-                              );
-                              console.log(ar, "update to -1");
+                                notification: {
+                                  body:
+                                    drivers[1].Language == "ar"
+                                      ? armes
+                                      : enmes,
+                                  sound: "default",
+                                },
+                              };
+                            } else if (drivers[1].deviceType == 2) {
+                              // Andriod
+                              postData = {
+                                data: {
+                                  PushType: "1",
+                                  PushTitle:
+                                    drivers[1].Language == "ar"
+                                      ? artitle
+                                      : entitle,
+                                  PushMessage:
+                                    data.Language == "ar" ? armes : enmes,
+                                  content_available: "true",
+                                  priority: "high",
+                                },
+                              };
                             }
-                          );
+                            admin
+                              .messaging()
+                              .sendToDevice(
+                                drivers[1].tokenID,
+                                postData,
+                                notification_options
+                              );
 
-                          var now2 = 0;
-                          let interval43 = setInterval(function () {
-                            now2++;
-                            Pending.findOne({tripID: Trip_ID}).then(
-                              (pen109) => {
-                                console.log(pen109.drs[1], Trip_ID);
-                                if (pen109.drs[1].status !== -1) {
-                                  clearInterval(interval43);
-                                  console.log("clear second interval");
-                                }
-                                console.log(now2);
+                            /////
+                            io
+                              .to(users.get(drivers[1].driverID))
+                              .emit("NewTripInfo", from_to);
+
+                            await Pending.findOne({ tripID: Trip_ID }).then(
+                              async (p12) => {
+                                console.log(p12);
+                                let ar = p12.drs;
+                                ar[1].status = -1;
+                                await Pending.updateOne(
+                                  { tripID: trip.tripID },
+                                  { $set: { drs: ar } }
+                                );
+                                console.log(ar, "update to -1");
                               }
                             );
-                            if (now2 === 20) {
-                              Pending.findOne({
-                                tripID: Trip_ID,
-                              }).then(async (saved) => {
-                                if (saved.drs[1].status === -1) {
-                                  let array = saved.drs;
-                                  array[1].status = 3;
-                                  await Pending.updateOne(
-                                    {tripID: trip.tripID},
-                                    {$set: {drs: array}}
-                                  );
-                                }
 
-                                if (saved.drs.length === 2) {
-                                  await DriverM.findOne({
-                                    driverID: saved.drs[1].driverID,
-                                  })
-                                    .then(async (savedDriver) => {
-                                      const arr = await TripM.findOne({
-                                        tripID: trip.tripID,
+                            var now2 = 0;
+                            let interval43 = setInterval(function () {
+                              now2++;
+                              Pending.findOne({ tripID: Trip_ID }).then(
+                                (pen109) => {
+                                  console.log(pen109.drs[1], Trip_ID);
+                                  if (pen109.drs[1].status !== -1) {
+                                    clearInterval(interval43);
+                                    console.log("clear second interval");
+                                  }
+                                  console.log(now2);
+                                }
+                              );
+                              if (now2 === 20) {
+                                Pending.findOne({
+                                  tripID: Trip_ID,
+                                }).then(async (saved) => {
+                                  if (saved.drs[1].status === -1) {
+                                    let array = saved.drs;
+                                    array[1].status = 3;
+                                    await Pending.updateOne(
+                                      { tripID: trip.tripID },
+                                      { $set: { drs: array } }
+                                    );
+                                  }
+
+                                  if (saved.drs.length === 2) {
+                                    await DriverM.findOne({
+                                      driverID: saved.drs[1].driverID,
+                                    })
+                                      .then(async (savedDriver) => {
+                                        const arr = await TripM.findOne({
+                                          tripID: trip.tripID,
+                                        });
+                                        console.log(arr.tripDrivers);
+                                        arr.tripDrivers.push({
+                                          driverID: savedDriver.driverID,
+                                          requestStatus: 3,
+                                          lat:
+                                            savedDriver.location
+                                              .coordinates[1],
+                                          lng:
+                                            savedDriver.location
+                                              .coordinates[0],
+                                          actionDate:
+                                            new Date(),
+                                        });
+                                        trip.tripStatusId = 2;
+                                        await TripM.updateOne(
+                                          { tripID: trip.tripID },
+                                          {
+                                            $set: {
+                                              tripStatusId: trip.tripStatusId,
+                                              tripDrivers: arr.tripDrivers,
+                                            },
+                                          }
+                                        );
+                                      })
+                                      .then(async () => {
+                                        await TripM.findOne({
+                                          tripID: trip.tripID,
+                                        }).then((savedTr) => {
+                                          try {
+                                            console.log(savedTr);
+                                            axios({
+                                              method: "post",
+                                              url:
+                                                "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                                              data: savedTr,
+                                              headers: {
+                                                Authorization: `Bearer ${data.token}`,
+                                                "Content-Type":
+                                                  "application / json",
+                                                "Accept-Language":
+                                                  data.Language,
+                                              },
+                                            }).then((res) => {
+                                              console.log(res.data);
+                                              io.to(
+                                                users.get(data.userId)
+                                              ).emit("DriverResponded", {
+                                                status: 2,
+                                                message:
+                                                  saved.Language == "en"
+                                                    ? "sorry,there is no available driver"
+                                                    : "!عذراُ لا يوجد سائق متاح حالياً",
+                                              });
+                                            });
+                                          } catch (error) {
+                                            console.log("abc");
+                                          }
+                                        });
                                       });
-                                      console.log(arr.tripDrivers);
-                                      arr.tripDrivers.push({
+                                  } else {
+                                    DriverM.findOne({
+                                      driverID: saved.drs[1].driverID,
+                                    }).then(async (savedDriver) => {
+                                      trip.tripDrivers.push({
                                         driverID: savedDriver.driverID,
                                         requestStatus: 3,
                                         lat:
                                           savedDriver.location.coordinates[1],
                                         lng:
                                           savedDriver.location.coordinates[0],
-                                        actionDate: new Date(),
+                                        actionDate:
+                                          new Date(),
                                       });
+
                                       trip.tripStatusId = 2;
                                       await TripM.updateOne(
-                                        {tripID: trip.tripID},
+                                        { tripID: trip.tripID },
                                         {
                                           $set: {
                                             tripStatusId: trip.tripStatusId,
-                                            tripDrivers: arr.tripDrivers,
+                                            tripDrivers: trip.tripDrivers,
                                           },
                                         }
                                       );
-                                    })
-                                    .then(async () => {
-                                      await TripM.findOne({
-                                        tripID: trip.tripID,
-                                      }).then((savedTr) => {
-                                        try {
-                                          console.log(savedTr);
-                                          axios({
-                                            method: "post",
-                                            url:
-                                              "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                            data: savedTr,
-                                            headers: {
-                                              Authorization: `Bearer ${data.token}`,
-                                              "Content-Type":
-                                                "application / json",
-                                              "Accept-Language": data.Language,
-                                            },
-                                          }).then((res) => {
-                                            console.log(res.data);
-                                            io.to(users.get(data.userId)).emit(
-                                              "DriverResponded",
-                                              {
-                                                status: 2,
-                                                message:
-                                                  saved.Language == "en"
-                                                    ? "sorry,there is no available driver"
-                                                    : "!عذراُ لا يوجد سائق متاح حالياً",
-                                              }
-                                            );
-                                          });
-                                        } catch (error) {
-                                          console.log("abc");
-                                        }
-                                      });
                                     });
-                                } else {
-                                  DriverM.findOne({
-                                    driverID: saved.drs[1].driverID,
-                                  }).then(async (savedDriver) => {
-                                    trip.tripDrivers.push({
-                                      driverID: savedDriver.driverID,
-                                      requestStatus: 3,
-                                      lat: savedDriver.location.coordinates[1],
-                                      lng: savedDriver.location.coordinates[0],
-                                      actionDate: new Date(),
-                                    });
+                                    var reachTime = await DistinationDuration(
+                                      pickupLat,
+                                      pickupLng,
+                                      drivers[2].location.coordinates[0],
+                                      drivers[2].location.coordinates[1]
+                                    );
 
-                                    trip.tripStatusId = 2;
-                                    await TripM.updateOne(
-                                      {tripID: trip.tripID},
-                                      {
-                                        $set: {
-                                          tripStatusId: trip.tripStatusId,
-                                          tripDrivers: trip.tripDrivers,
+                                    from_to.reachTime = (
+                                      reachTime[0].duration.value / 60
+                                    ).toFixed();
+                                    from_to.arriveTime = driveTimeCalc(
+                                      0,
+                                      from_to.reachTime,
+                                      drivers[2].Language
+                                    );
+
+                                    var postData;
+
+                                    if (drivers[2].deviceType == 1) {
+                                      // IOS
+                                      postData = {
+                                        data: {
+                                          PushType: "1",
+                                          PushTitle:
+                                            drivers[2].Language == "ar"
+                                              ? artitle
+                                              : entitle,
                                         },
-                                      }
-                                    );
-                                  });
-                                  var reachTime = await DistinationDuration(
-                                    pickupLat,
-                                    pickupLng,
-                                    drivers[2].location.coordinates[0],
-                                    drivers[2].location.coordinates[1]
-                                  );
-
-                                  from_to.reachTime = (
-                                    reachTime[0].duration.value / 60
-                                  ).toFixed();
-                                  from_to.arriveTime = driveTimeCalc(
-                                    0,
-                                    from_to.reachTime,
-                                    drivers[2].Language
-                                  );
-
-                                  var postData;
-
-                                  if (drivers[2].deviceType == 1) {
-                                    // IOS
-                                    postData = {
-                                      data: {
-                                        PushType: "1",
-                                        PushTitle:
-                                          drivers[2].Language == "ar"
-                                            ? artitle
-                                            : entitle,
-                                      },
-                                      notification: {
-                                        body:
-                                          drivers[2].Language == "ar"
-                                            ? armes
-                                            : enmes,
-                                        sound: "default",
-                                      },
-                                    };
-                                  } else if (drivers[2].deviceType == 2) {
-                                    // Andriod
-                                    postData = {
-                                      data: {
-                                        PushType: "1",
-                                        PushTitle:
-                                          drivers[2].Language == "ar"
-                                            ? artitle
-                                            : entitle,
-                                        PushMessage:
-                                          data.Language == "ar" ? armes : enmes,
-                                        content_available: "true",
-                                        priority: "high",
-                                      },
-                                    };
-                                  }
-                                  admin
-                                    .messaging()
-                                    .sendToDevice(
-                                      drivers[2].tokenID,
-                                      postData,
-                                      notification_options
-                                    );
-                                  /////
-                                  socket
-                                    .to(users.get(drivers[2].driverID))
-                                    .emit("NewTripInfo", from_to);
-
-                                  await Pending.findOne({
-                                    tripID: Trip_ID,
-                                  }).then(async (tr12) => {
-                                    var ar = tr12.drs;
-                                    ar[2].status = -1;
-                                    await Pending.updateOne(
-                                      {tripID: trip.tripID},
-                                      {$set: {drs: ar}}
-                                    );
-                                  });
-                                  var now3 = 0;
-                                  let interval69 = setInterval(function () {
-                                    now3++;
-                                    Pending.findOne({tripID: Trip_ID}).then(
-                                      (pen110) => {
-                                        console.log(pen110.drs[2], Trip_ID);
-                                        if (pen110.drs[2].status !== -1) {
-                                          clearInterval(interval69);
-                                          console.log("clear second interval");
-                                        }
-                                        console.log(now3);
-                                      }
-                                    );
-                                    if (now3 === 20) {
-                                      Pending.findOne({
-                                        tripID: Trip_ID,
-                                      }).then(async (saved) => {
-                                        if (saved.drs[2].status === -1) {
-                                          let array = saved.drs;
-                                          array[2].status = 3;
-                                          Pending.updateOne(
-                                            {tripID: trip.tripID},
-                                            {$set: {drs: array}}
-                                          );
-                                        }
-                                        DriverM.findOne({
-                                          driverID: saved.drs[2].driverID,
-                                        }).then(async (savedDriver) => {
-                                          try {
-                                            const arr = await TripM.findOne({
-                                              tripID: trip.tripID,
-                                            });
-                                            arr.tripDrivers.push({
-                                              driverID: savedDriver.driverID,
-                                              requestStatus: 3,
-                                              lat:
-                                                savedDriver.location
-                                                  .coordinates[1],
-                                              lng:
-                                                savedDriver.location
-                                                  .coordinates[0],
-                                              actionDate: new Date(),
-                                            });
-                                            trip.tripStatusId = 2;
-                                            await TripM.updateOne(
-                                              {tripID: trip.tripID},
-                                              {
-                                                $set: {
-                                                  tripStatusId:
-                                                    trip.tripStatusId,
-                                                  tripDrivers: arr.tripDrivers,
-                                                },
-                                              }
-                                            );
-                                            await TripM.findOne({
-                                              tripID: trip.tripID,
-                                            }).then((savedTr) => {
-                                              try {
-                                                console.log(savedTr);
-                                                axios({
-                                                  method: "post",
-                                                  url:
-                                                    "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                                  data: savedTr,
-                                                  headers: {
-                                                    Authorization: `Bearer ${data.token}`,
-                                                    "Content-Type":
-                                                      "application / json",
-                                                    "Accept-Language":
-                                                      data.Language,
-                                                  },
-                                                }).then((res) => {
-                                                  io.to(
-                                                    users.get(data.userId)
-                                                  ).emit("DriverResponded", {
-                                                    status: 2,
-                                                    message:
-                                                      saved.Language == "en"
-                                                        ? "sorry,there is no available driver"
-                                                        : "!عذراُ لا يوجد سائق متاح حالياً",
-                                                  });
-                                                  console.log(res.data);
-                                                });
-                                              } catch (error) {
-                                                console.log("abc");
-                                              }
-                                            });
-                                          } catch (error) {
-                                            console.log("hammoud");
-                                          }
-                                        });
-                                      });
-                                      clearInterval(interval69);
-                                      console.log("clear interval69");
+                                        notification: {
+                                          body:
+                                            drivers[2].Language == "ar"
+                                              ? armes
+                                              : enmes,
+                                          sound: "default",
+                                        },
+                                      };
+                                    } else if (drivers[2].deviceType == 2) {
+                                      // Andriod
+                                      postData = {
+                                        data: {
+                                          PushType: "1",
+                                          PushTitle:
+                                            drivers[2].Language == "ar"
+                                              ? artitle
+                                              : entitle,
+                                          PushMessage:
+                                            data.Language == "ar"
+                                              ? armes
+                                              : enmes,
+                                          content_available: "true",
+                                          priority: "high",
+                                        },
+                                      };
                                     }
-                                  }, 1000);
-                                }
-                              });
-                              clearInterval(interval43);
-                              console.log("clear interval43");
-                            }
-                          }, 1000);
-                          ///////////
+                                    admin
+                                      .messaging()
+                                      .sendToDevice(
+                                        drivers[2].tokenID,
+                                        postData,
+                                        notification_options
+                                      );
+                                    /////
+                                    io
+                                      .to(users.get(drivers[2].driverID))
+                                      .emit("NewTripInfo", from_to);
+
+                                    await Pending.findOne({
+                                      tripID: Trip_ID,
+                                    }).then(async (tr12) => {
+                                      var ar = tr12.drs;
+                                      ar[2].status = -1;
+                                      await Pending.updateOne(
+                                        { tripID: trip.tripID },
+                                        { $set: { drs: ar } }
+                                      );
+                                    });
+                                    var now3 = 0;
+                                    let interval69 = setInterval(function () {
+                                      now3++;
+                                      Pending.findOne({ tripID: Trip_ID }).then(
+                                        (pen110) => {
+                                          console.log(pen110.drs[2], Trip_ID);
+                                          if (pen110.drs[2].status !== -1) {
+                                            clearInterval(interval69);
+                                            console.log(
+                                              "clear second interval"
+                                            );
+                                          }
+                                          console.log(now3);
+                                        }
+                                      );
+                                      if (now3 === 20) {
+                                        Pending.findOne({
+                                          tripID: Trip_ID,
+                                        }).then(async (saved) => {
+                                          if (saved.drs[2].status === -1) {
+                                            let array = saved.drs;
+                                            array[2].status = 3;
+                                            Pending.updateOne(
+                                              { tripID: trip.tripID },
+                                              { $set: { drs: array } }
+                                            );
+                                          }
+                                          DriverM.findOne({
+                                            driverID: saved.drs[2].driverID,
+                                          }).then(async (savedDriver) => {
+                                            try {
+                                              const arr = await TripM.findOne(
+                                                {
+                                                  tripID: trip.tripID,
+                                                }
+                                              );
+                                              arr.tripDrivers.push({
+                                                driverID:
+                                                  savedDriver.driverID,
+                                                requestStatus: 3,
+                                                lat:
+                                                  savedDriver.location
+                                                    .coordinates[1],
+                                                lng:
+                                                  savedDriver.location
+                                                    .coordinates[0],
+                                                actionDate:
+                                                  new Date(),
+                                              });
+                                              trip.tripStatusId = 2;
+                                              await TripM.updateOne(
+                                                { tripID: trip.tripID },
+                                                {
+                                                  $set: {
+                                                    tripStatusId:
+                                                      trip.tripStatusId,
+                                                    tripDrivers:
+                                                      arr.tripDrivers,
+                                                  },
+                                                }
+                                              );
+                                              await TripM.findOne({
+                                                tripID: trip.tripID,
+                                              }).then((savedTr) => {
+                                                try {
+                                                  console.log(savedTr);
+                                                  axios({
+                                                    method: "post",
+                                                    url:
+                                                      "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                                                    data: savedTr,
+                                                    headers: {
+                                                      Authorization: `Bearer ${data.token}`,
+                                                      "Content-Type":
+                                                        "application / json",
+                                                      "Accept-Language":
+                                                        data.Language,
+                                                    },
+                                                  }).then((res) => {
+                                                    io.to(
+                                                      users.get(data.userId)
+                                                    ).emit(
+                                                      "DriverResponded",
+                                                      {
+                                                        status: 2,
+                                                        message:
+                                                          saved.Language ==
+                                                            "en"
+                                                            ? "sorry,there is no available driver"
+                                                            : "!عذراُ لا يوجد سائق متاح حالياً",
+                                                      }
+                                                    );
+                                                    console.log(res.data);
+                                                  });
+                                                } catch (error) {
+                                                  console.log("abc");
+                                                }
+                                              });
+                                            } catch (error) {
+                                              console.log("hammoud");
+                                            }
+                                          });
+                                        });
+                                        clearInterval(interval69);
+                                        console.log("clear interval69");
+                                      }
+                                    }, 1000);
+                                  }
+                                });
+                                clearInterval(interval43);
+                                console.log("clear interval43");
+                              }
+                            }, 1000);
+                            ///////////
+                          }
                         }
-                      });
+                      );
                       clearInterval(interval1);
                       console.log("clear interval1");
                     }
@@ -794,7 +824,7 @@ module.exports = async function (data, socket, io) {
               Language: data.Language,
             });
             const savedPending = await pending.save();
-            Pending.findOne({tripID: trip.tripID}).then(async (res1) => {
+            Pending.findOne({ tripID: trip.tripID }).then(async (res1) => {
               trip.tripStatusId = 2;
               trip.tripDrivers = [];
               await trip.save().then((res) => {
@@ -803,7 +833,8 @@ module.exports = async function (data, socket, io) {
                   console.log(res1, "yup");
                   axios({
                     method: "post",
-                    url: "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                    url:
+                      "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
                     data: res1,
                     headers: {
                       Authorization: `Bearer ${res1.loginToken}`,
@@ -871,7 +902,7 @@ module.exports = async function (data, socket, io) {
                   });
                 } catch (error) {
                   console.log(error);
-                  io.to(users.get(data.userId)).emit("DriverResponded", {
+                  socket.emit("DriverResponded", {
                     status: 0,
                     message:
                       res1.Language == "en"
@@ -885,7 +916,7 @@ module.exports = async function (data, socket, io) {
         } else {
           var user_id = users.get(data.userId);
 
-          io.to(users.get(data.userId)).emit("DriverResponded", {
+          socket.emit("DriverResponded", {
             status: 0,
             message:
               data.Language == "en"

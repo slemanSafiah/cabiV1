@@ -1,7 +1,9 @@
 const DriverM = require("../models/Driver");
 const axios = require("axios");
+var {
+  admins
+  } = require("../server");
 
-var { admins, io, sentry } = require("../server");
 module.exports = async function (data, socket, io) {
   //console.log(data);
   var newLat = data.lat;
@@ -42,10 +44,10 @@ module.exports = async function (data, socket, io) {
               driver.isOnline === true && driver.isBusy == false
                 ? 1
                 : driver.isOnline == true && driver.isBusy == true
-                  ? 2
-                  : driver.isOnline == false
-                    ? 3
-                    : 0,
+                ? 2
+                : driver.isOnline == false
+                ? 3
+                : 0,
             driverID: driver.driverID,
             location: location,
             categoryCarTypeID: driver.categoryCarTypeID,

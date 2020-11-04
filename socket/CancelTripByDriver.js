@@ -1,5 +1,7 @@
 const axios = require("axios");
 const Pending = require("../models/Pending");
+const DriverM = require("../models/Driver");
+
 var {users, notification_options} = require("../server");
 const admin = require("firebase-admin");
 
@@ -19,14 +21,15 @@ module.exports = async function (data, socket, io) {
         },
       };
       try {
-        let promoResponse = await axios(config).then(async (res) => {
-          console.log("uyuyuyu", res.data);
+        let promoResponse = await axios(config).then(async(res) => {
+          console.log("uyuyuyu", res.data.status);
           if (res.data.status) {
+            console.log("jkljkljllj")
+            socket.emit("CancelTripByDriver", {
+              status: true,
+            });
             io.to(users.get(trip.userID)).emit("CancelTripByDriver", {
-              message:
-                trip.Language == "en"
-                  ? "Sorry,the driver canceled your ride"
-                  : "عفوا الكابتن قام بإلغاء الرحلة",
+              message: trip.Language=='en'?'Sorry,the driver canceled your ride':'عفوا الكابتن قام بإلغاء الرحلة',
               status: true,
             });
             await DriverM.updateOne(
@@ -35,14 +38,12 @@ module.exports = async function (data, socket, io) {
               },
               {
                 $set: {
-                  isBusy: false,
+                  isBusy:false,
                 },
               }
-            );
+            )
 
-            socket.emit("CancelTripByDriver", {
-              status: true,
-            });
+           
 
             var postData;
 
