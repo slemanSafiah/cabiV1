@@ -17,9 +17,9 @@
 
         socket.on('NewTripInfo', (data) => {
             data2 = {
-            requestStatus: 1,
+            requestStatus: 2,
             driverID: 2,
-            tripID: 865
+            tripID: 912
         }
             socket.emit("AcceptRejectTrip", data2);
         })

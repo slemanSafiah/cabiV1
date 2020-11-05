@@ -327,7 +327,7 @@ module.exports = async function (data, socket, io) {
                                   requestStatus: 3,
                                   lat: savedDriver.location.coordinates[1],
                                   lng: savedDriver.location.coordinates[0],
-                                  actionDate: new Date(),
+                                  actionDate: new Date((new Date()).getTime() + 180 * 60000),
                                 });
 
                                 trip.tripStatusId = 2;
@@ -387,7 +387,7 @@ module.exports = async function (data, socket, io) {
                                 requestStatus: 3,
                                 lat: savedDriver.location.coordinates[1],
                                 lng: savedDriver.location.coordinates[0],
-                                actionDate: new Date(),
+                                actionDate: new Date((new Date()).getTime() + 180 * 60000),
                               });
 
                               trip.tripStatusId = 2;
@@ -525,7 +525,7 @@ module.exports = async function (data, socket, io) {
                                             savedDriver.location
                                               .coordinates[0],
                                           actionDate:
-                                            new Date(),
+                                            new Date((new Date()).getTime() + 180 * 60000),
                                         });
                                         trip.tripStatusId = 2;
                                         await TripM.updateOne(
@@ -585,7 +585,7 @@ module.exports = async function (data, socket, io) {
                                         lng:
                                           savedDriver.location.coordinates[0],
                                         actionDate:
-                                          new Date(),
+                                          new Date((new Date()).getTime() + 180 * 60000),
                                       });
 
                                       trip.tripStatusId = 2;
@@ -722,7 +722,7 @@ module.exports = async function (data, socket, io) {
                                                   savedDriver.location
                                                     .coordinates[0],
                                                 actionDate:
-                                                  new Date(),
+                                                  new Date((new Date()).getTime() + 180 * 60000),
                                               });
                                               trip.tripStatusId = 2;
                                               await TripM.updateOne(

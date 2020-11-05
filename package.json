@@ -20,6 +20,7 @@
     "firebase-admin": "^9.2.0",
     "fs": "0.0.1-security",
     "jsonwebtoken": "^8.5.1",
+    "moment-timezone": "^0.5.31",
     "mongoose": "^5.10.0",
     "mongoose-geojson-schema": "^2.1.5",
     "nodemailer": "^6.4.11",

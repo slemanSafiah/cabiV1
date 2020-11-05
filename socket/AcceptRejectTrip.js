@@ -1,5 +1,6 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
+const moment = require('moment-timezone');
 
 const DriverM = require("../models/Driver");
 const TripM = require("../models/Trip");
@@ -19,8 +20,10 @@ var {
   notification_options,
 } = require("../server");
 
+
 module.exports = async function (data, socket, io) {
   console.log("-------------------------------- this is the end");
+  console.log(data)
   const tripArr = await TripM.findOne({ tripID: data.tripID });
   console.log(tripArr);
   var tripCond = false;
@@ -38,7 +41,7 @@ module.exports = async function (data, socket, io) {
     await Pending.findOne({ tripID: data.tripID }).then(async (pe) => {
       let ar = pe.drs;
       user = pe.userID;
-      console.log(user, "opoperer");
+      console.log(pe, "opoperer");
       for (let j = 0; j < ar.length; j++) {
         if (ar[j].driverID === data.driverID) {
           ar[j].status = data.requestStatus;
@@ -81,13 +84,14 @@ module.exports = async function (data, socket, io) {
                           await DriverM.findOne({
                             driverID: saved1.drs[l].driverID,
                           }).then((d) => {
-                            //console.log(d, 'dddddddd')
+                            //console.log(riyadh, 'dddddddd')
+                            var d = new Date();
                             trp.push({
                               driverID: d.driverID,
                               requestStatus: 1,
                               lat: d.location.coordinates[1],
                               lng: d.location.coordinates[0],
-                              actionDate: new Date(),
+                              actionDate: new Date((new Date()).getTime() + 180 * 60000),
                             });
                           });
                         }
@@ -223,13 +227,17 @@ module.exports = async function (data, socket, io) {
                                       },
                                     };
                                   }
-                                  admin
-                                    .messaging()
-                                    .sendToDevice(
-                                      saved1.registrationToken,
-                                      postData,
-                                      notification_options
-                                    );
+                                  try {
+                                    admin
+                                      .messaging()
+                                      .sendToDevice(
+                                        saved1.registrationToken,
+                                        postData,
+                                        notification_options
+                                      );
+                                  } catch (error) {
+
+                                  }
 
                                   console.log(
                                     users.get(saved.userID),
@@ -292,6 +300,7 @@ module.exports = async function (data, socket, io) {
           { tripID: data.tripID },
           { $set: { drs: array } }
         ).then(async () => {
+          console.log(users.get(data.driverID), "uuuuuuuuuuuuuuuuuuuuu")
           io.to(users.get(data.driverID)).emit("AcceptRejectTrip", {
             status: true,
             condition: false,
@@ -300,12 +309,13 @@ module.exports = async function (data, socket, io) {
           var qa = await TripM.findOne({ tripID: data.tripID });
           var v = qa.tripDrivers;
           await DriverM.findOne({ driverID: data.driverID }).then(d => {
+            //console.log(riyadh, 'dd1')
             v.push({
               driverID: d.driverID,
               requestStatus: 2,
               lat: d.location.coordinates[1],
               lng: d.location.coordinates[0],
-              actionDate: new Date(),
+              actionDate: new Date((new Date()).getTime() + 180 * 60000),
             })
           })
           await TripM.updateOne({ tripID: data.tripID }, { $set: { tripDrivers: v } });
@@ -327,24 +337,6 @@ module.exports = async function (data, socket, io) {
                   async (pendingTrip2) => {
                     console.log(pendingTrip2, "black lives is matter");
 
-                    // var tr = await TripM.findOne({ tripID: data.tripID });
-                    // console.log(tr)
-                    // var array3 = tr.tripDrivers;
-                    // for (let k = 0; k < pendingTrip2.drs.length; k++) {
-                    //   if (pendingTrip2.drs[k].driverID === data.driverID) {
-                    //     await DriverM.findOne({
-                    //       driverID: pendingTrip2.drs[k].driverID,
-                    //     }).then((savedDriver) => {
-                    //       array3.push({
-                    //         driverID: savedDriver.driverID,
-                    //         requestStatus: pendingTrip2.drs[k].status,
-                    //         lat: savedDriver.location.coordinates[1],
-                    //         lng: savedDriver.location.coordinates[0],
-                    //         actionDate: new Date(),
-                    //       });
-                    //     });
-                    //   }
-                    // }
                     await TripM.updateOne(
                       { tripID: data.tripID },
                       { $set: { tripStatusId: 2 } }
@@ -414,13 +406,18 @@ module.exports = async function (data, socket, io) {
                                   },
                                 };
                               }
-                              admin
-                                .messaging()
-                                .sendToDevice(
-                                  pendingTrip2.registrationToken,
-                                  postData,
-                                  notification_options
-                                );
+                              try {
+                                admin
+                                  .messaging()
+                                  .sendToDevice(
+                                    pendingTrip2.registrationToken,
+                                    postData,
+                                    notification_options
+                                  );
+                              }
+                              catch (error) {
+
+                              }
 
                               io.to(
                                 users.get(pendingTrip2.userID)
@@ -518,20 +515,6 @@ module.exports = async function (data, socket, io) {
                       }
                     );
 
-                    await TripM.findOne({ tripID: data.tripID }).then(async (t) => {
-                      console.log(t, 'qweqwe');
-                      console.log(t.tripDrivers, '123123');
-                      var ar = t.tripDrivers;
-                      ar.push({
-                        driverID: driver.driverID,
-                        requestStatus: 3,
-                        lat: driver.location.coordinates[1],
-                        lng: driver.location.coordinates[0],
-                        actionDate: new Date(),
-                      })
-                      await TripM.updateOne({ tripID: data.tripID }, { $set: { tripDrivers: ar } });
-                    })
-
                     var now = 0;
                     console.log(from_to);
                     let interval4 = setInterval(async function () {
@@ -557,11 +540,25 @@ module.exports = async function (data, socket, io) {
                               );
                               await Pending.findOne({
                                 tripID: data.tripID,
-                              }).then((updatedPending3) => {
+                              }).then(async (updatedPending3) => {
                                 console.log(
                                   updatedPending3,
                                   "after second ignore"
                                 );
+
+                                await TripM.findOne({ tripID: data.tripID }).then(async (t) => {
+                                  //console.log(riyadh, 'ddd2');
+                                  var ar = t.tripDrivers;
+                                  ar.push({
+                                    driverID: driver.driverID,
+                                    requestStatus: 3,
+                                    lat: driver.location.coordinates[1],
+                                    lng: driver.location.coordinates[0],
+                                    actionDate: new Date((new Date()).getTime() + 180 * 60000),
+                                  })
+                                  await TripM.updateOne({ tripID: data.tripID }, { $set: { tripDrivers: ar } });
+                                })
+
                                 var idx3 = -1;
                                 var array6 = updatedPending3.drs;
                                 for (let n = 0; n < array6.length; n++) {
@@ -571,153 +568,155 @@ module.exports = async function (data, socket, io) {
                                   }
                                 }
                                 if (idx3 === -1) {
-                                  console.log(updatedPending3, 33333333);
-                                  TripM.findOne({ tripID: data.tripID }).then(
-                                    async (trip11) => {
-                                      var finalDrivers = trip11.tripDrivers;
-                                      for (let q = 0; q < array6.length; q++) {
-                                        if (array6[idx3].driverID === data.driverID) {
-                                          await DriverM.findOne({
-                                            driverID: array6[q].driverID,
-                                          }).then((driver) => {
-                                            finalDrivers.push({
-                                              driverID: driver.driverID,
-                                              requestStatus: 3,
-                                              lat: driver.location.coordinates[1],
-                                              lng: driver.location.coordinates[0],
-                                              actionDate: new Date(),
-                                            });
+                                  // console.log(updatedPending3, 33333333);
+                                  // TripM.findOne({ tripID: data.tripID }).then(
+                                  //   async (trip11) => {
+                                  //     var finalDrivers = trip11.tripDrivers;
+                                  //     for (let q = 0; q < array6.length; q++) {
+                                  //       if (array6[idx3].driverID === data.driverID) {
+                                  //         await DriverM.findOne({
+                                  //           driverID: array6[q].driverID,
+                                  //         }).then((driver) => {
+                                  //           finalDrivers.push({
+                                  //             driverID: driver.driverID,
+                                  //             requestStatus: 3,
+                                  //             lat: driver.location.coordinates[1],
+                                  //             lng: driver.location.coordinates[0],
+                                  //             actionDate: riyadh,
+                                  //           });
+                                  //         });
+                                  //       }
+                                  //     }
+                                  //     console.log(finalDrivers, "final");
+                                  //     let data1 = trip11;
+                                  //     data1.tripStatusId = 2;
+                                  //     data1.tripDrivers = finalDrivers;
+                                  //     console.log(data1);
+                                  //     await TripM.updateOne(
+                                  //       { tripID: data.tripID },
+                                  //       {
+                                  //         $set: {
+                                  //           tripStatusId: 2,
+                                  //           tripDrivers: finalDrivers,
+                                  //         },
+                                  //       }
+                                  //     ).then(() => {
+                                  TripM.findOne({
+                                    tripID: data.tripID,
+                                  }).then((res1) => {
+                                    try {
+                                      console.log(res1, "important");
+                                      axios({
+                                        method: "post",
+                                        url:
+                                          "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
+                                        data: res1,
+                                        headers: {
+                                          Authorization: `Bearer ${updatedPending3.loginToken}`,
+                                          "Content-Type":
+                                            "application / json",
+                                        },
+                                      }).then((res3) => {
+                                        console.log("popopop", res3);
+
+                                        if (
+                                          !res3 ||
+                                          res3.data.status === false
+                                        ) {
+                                          console.log(res3.dara);
+                                          io.to(
+                                            users.get(
+                                              updatedPending3.userID
+                                            )
+                                          ).emit("DriverResponded", {
+                                            status: 0,
+                                            message:
+                                              updatedPending3.Language ==
+                                                "en"
+                                                ? "sorry,there is no available driver"
+                                                : "!عذراُ لا يوجد سائق متاح حالياً",
+                                          });
+                                        } else {
+                                          var postData;
+
+                                          if (
+                                            updatedPending3.deviceType ==
+                                            1
+                                          ) {
+                                            // IOS
+                                            postData = {
+                                              data: {
+                                                PushType: "2",
+                                                PushTitle:
+                                                  updatedPending3.Language ==
+                                                    "ar"
+                                                    ? nodrivertitlear
+                                                    : nodrivertitleen,
+                                              },
+                                              notification: {
+                                                body:
+                                                  updatedPending3.Language ==
+                                                    "ar"
+                                                    ? nodrivermesar
+                                                    : nodrivermesen,
+                                                sound: "default",
+                                              },
+                                            };
+                                          } else if (
+                                            updatedPending3.deviceType ==
+                                            2
+                                          ) {
+                                            // Andriod
+                                            postData = {
+                                              data: {
+                                                PushType: "2",
+                                                PushTitle:
+                                                  updatedPending3.Language ==
+                                                    "ar"
+                                                    ? nodrivertitlear
+                                                    : nodrivertitleen,
+                                                PushMessage:
+                                                  updatedPending3.Language ==
+                                                    "ar"
+                                                    ? nodrivermesar
+                                                    : nodrivermesen,
+                                                content_available:
+                                                  "true",
+                                                priority: "high",
+                                              },
+                                            };
+                                          }
+                                          try {
+                                            admin
+                                              .messaging()
+                                              .sendToDevice(
+                                                updatedPending3.registrationToken,
+                                                postData,
+                                                notification_options
+                                              );
+                                          }
+                                          catch (err) { }
+                                          io.to(
+                                            users.get(
+                                              updatedPending3.userID
+                                            )
+                                          ).emit("DriverResponded", {
+                                            status: 2,
+                                            message:
+                                              updatedPending3.Language ==
+                                                "en"
+                                                ? "sorry,there is no available driver"
+                                                : "!عذراُ لا يوجد سائق متاح حالياً",
                                           });
                                         }
-                                      }
-                                      console.log(finalDrivers, "final");
-                                      let data1 = trip11;
-                                      data1.tripStatusId = 2;
-                                      data1.tripDrivers = finalDrivers;
-                                      console.log(data1);
-                                      await TripM.updateOne(
-                                        { tripID: data.tripID },
-                                        {
-                                          $set: {
-                                            tripStatusId: 2,
-                                            tripDrivers: finalDrivers,
-                                          },
-                                        }
-                                      ).then(() => {
-                                        TripM.findOne({
-                                          tripID: data.tripID,
-                                        }).then((res1) => {
-                                          try {
-                                            console.log(res1, "important");
-                                            axios({
-                                              method: "post",
-                                              url:
-                                                "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
-                                              data: res1,
-                                              headers: {
-                                                Authorization: `Bearer ${updatedPending3.loginToken}`,
-                                                "Content-Type":
-                                                  "application / json",
-                                              },
-                                            }).then((res3) => {
-                                              console.log("popopop", res3);
-
-                                              if (
-                                                !res3 ||
-                                                res3.data.status === false
-                                              ) {
-                                                console.log(res3.dara);
-                                                io.to(
-                                                  users.get(
-                                                    updatedPending3.userID
-                                                  )
-                                                ).emit("DriverResponded", {
-                                                  status: 0,
-                                                  message:
-                                                    updatedPending3.Language ==
-                                                      "en"
-                                                      ? "sorry,there is no available driver"
-                                                      : "!عذراُ لا يوجد سائق متاح حالياً",
-                                                });
-                                              } else {
-                                                var postData;
-
-                                                if (
-                                                  updatedPending3.deviceType ==
-                                                  1
-                                                ) {
-                                                  // IOS
-                                                  postData = {
-                                                    data: {
-                                                      PushType: "2",
-                                                      PushTitle:
-                                                        updatedPending3.Language ==
-                                                          "ar"
-                                                          ? nodrivertitlear
-                                                          : nodrivertitleen,
-                                                    },
-                                                    notification: {
-                                                      body:
-                                                        updatedPending3.Language ==
-                                                          "ar"
-                                                          ? nodrivermesar
-                                                          : nodrivermesen,
-                                                      sound: "default",
-                                                    },
-                                                  };
-                                                } else if (
-                                                  updatedPending3.deviceType ==
-                                                  2
-                                                ) {
-                                                  // Andriod
-                                                  postData = {
-                                                    data: {
-                                                      PushType: "2",
-                                                      PushTitle:
-                                                        updatedPending3.Language ==
-                                                          "ar"
-                                                          ? nodrivertitlear
-                                                          : nodrivertitleen,
-                                                      PushMessage:
-                                                        updatedPending3.Language ==
-                                                          "ar"
-                                                          ? nodrivermesar
-                                                          : nodrivermesen,
-                                                      content_available:
-                                                        "true",
-                                                      priority: "high",
-                                                    },
-                                                  };
-                                                }
-                                                admin
-                                                  .messaging()
-                                                  .sendToDevice(
-                                                    updatedPending3.registrationToken,
-                                                    postData,
-                                                    notification_options
-                                                  );
-
-                                                io.to(
-                                                  users.get(
-                                                    updatedPending3.userID
-                                                  )
-                                                ).emit("DriverResponded", {
-                                                  status: 2,
-                                                  message:
-                                                    updatedPending3.Language ==
-                                                      "en"
-                                                      ? "sorry,there is no available driver"
-                                                      : "!عذراُ لا يوجد سائق متاح حالياً",
-                                                });
-                                              }
-                                            });
-                                          } catch (error) {
-                                            console.log("abc");
-                                          }
-                                        });
                                       });
+                                    } catch (error) {
+                                      console.log("abc");
                                     }
-                                  );
+                                  });
+                                  //     });
+                                  //   }
+                                  // );
                                 } else {
                                   DriverM.findOne({
                                     driverID: array6[idx3].driverID,
@@ -781,14 +780,16 @@ module.exports = async function (data, socket, io) {
                                           },
                                         };
                                       }
-                                      admin
-                                        .messaging()
-                                        .sendToDevice(
-                                          dr.tokenID,
-                                          postData,
-                                          notification_options
-                                        );
-
+                                      try {
+                                        admin
+                                          .messaging()
+                                          .sendToDevice(
+                                            dr.tokenID,
+                                            postData,
+                                            notification_options
+                                          );
+                                      }
+                                      catch (err) { }
                                       from_to.reachTime = reachTime;
                                       from_to.arriveTime = arriveTime;
                                       io.to(users.get(dr.driverID)).emit("NewTripInfo", from_to);
@@ -830,14 +831,14 @@ module.exports = async function (data, socket, io) {
                                                   var array123 = t.tripDrivers;
 
                                                   await DriverM.findOne({
-                                                    driverID: pen115.drs[r].driverID,
+                                                    driverID: pen115.drs[2].driverID,
                                                   }).then((tmpDriver) => {
                                                     array123.push({
                                                       driverID: tmpDriver.driverID,
                                                       requestStatus: 3,
                                                       lat: tmpDriver.location.coordinates[1],
                                                       lng: tmpDriver.location.coordinates[0],
-                                                      actionDate: new Date(),
+                                                      actionDate: new Date((new Date()).getTime() + 180 * 60000),
                                                     });
                                                   });
 
@@ -945,15 +946,16 @@ module.exports = async function (data, socket, io) {
                                                                 },
                                                               };
                                                             }
-                                                            admin
-                                                              .messaging()
-                                                              .sendToDevice(
-                                                                pen115.registrationToken,
-
-                                                                postData,
-                                                                notification_options
-                                                              );
-
+                                                            try {
+                                                              admin
+                                                                .messaging()
+                                                                .sendToDevice(
+                                                                  pen115.registrationToken,
+                                                                  postData,
+                                                                  notification_options
+                                                                );
+                                                            }
+                                                            catch (err) { }
                                                             io.to(
                                                               users.get(
                                                                 pen115.userID

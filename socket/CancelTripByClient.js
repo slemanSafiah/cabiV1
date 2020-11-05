@@ -3,15 +3,15 @@ const axios = require("axios");
 const DriverM = require("../models/Driver");
 const TripM = require("../models/Trip");
 const Pending = require("../models/Pending");
-var {users, notification_options} = require("../server");
+var { users, notification_options } = require("../server");
 const admin = require("firebase-admin");
 
 module.exports = async function (data, socket, io) {
-  console.log("bmnbnmbmn",data);
-    try{
-    await TripM.findOne({tripID: data.tripMasterID}).then(async (resp) => {
-      console.log("kljkljkl",resp)
-      if (resp.tripStatusId==3) {
+  console.log("bmnbnmbmn", data);
+  try {
+    await TripM.findOne({ tripID: data.tripMasterID }).then(async (resp) => {
+      console.log("kljkljkl", resp)
+      if (resp.tripStatusId == 3) {
         console.log("kljjlkj")
         await axios({
           method: "post",
@@ -24,29 +24,31 @@ module.exports = async function (data, socket, io) {
         }).then(async (res) => {
           console.log(res.data);
           if (res.data.status) {
-            await Pending.findOne({tripID: data.tripMasterID}).then(
+            await Pending.findOne({ tripID: data.tripMasterID }).then(
               async (pend) => {
                 var arr = pend.drs;
                 for (let j = 0; j < arr.length; j++) {
                   if (arr[j].status === 1) {
-                    
-                      await DriverM.updateOne( {
-                            driverID: arr[j].driverID,
-                             }, {$set: {
-                           isBusy: false,
-                          },
-                      })
-                  
-                    await DriverM.find({driverID: arr[j].driverID}).then(
+
+                    await DriverM.updateOne({
+                      driverID: arr[j].driverID,
+                    }, {
+                      $set: {
+                        isBusy: false,
+                      },
+                    })
+
+                    await DriverM.find({ driverID: arr[j].driverID }).then(
                       (driver) => {
-                      console.log("oioipo",driver[0])
+                        console.log("oioipo", driver[0])
                         io.to(users.get(driver[0].driverID)).emit(
                           "CancelTripByClient",
-                          {data:res.data.message,status:true, message:driver[0].Language=='en'? "Sorry,the client canceled your ride":'عفوا العميل قام بإلغاء الرحلة'
-                         });       
-                        console.log(users.get(data.userId),driver[0].tokenID,"kklljklj",users,data.userId)
+                          {
+                            data: res.data.message, status: true, message: driver[0].Language == 'en' ? "Sorry,the client canceled your ride" : 'عفوا العميل قام بإلغاء الرحلة'
+                          });
+                        console.log(users.get(data.userId), driver[0].tokenID, "kklljklj", users, data.userId)
                         socket.emit("CancelTripByClient", {
-                          status: true,message:'succes'
+                          status: true, message: 'succes'
                         });
                         var postData;
                         if (driver.deviceType == 1) {
@@ -97,7 +99,7 @@ module.exports = async function (data, socket, io) {
                 }
               }
             );
-  
+
           } else {
             socket.emit("CancelTripByClient", {
               status: false,
@@ -107,41 +109,47 @@ module.exports = async function (data, socket, io) {
         });
       } else {
         console.log("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-        Pending.findOne({tripID: data.tripMasterID}).then(async (pend) => {
+        Pending.findOne({ tripID: data.tripMasterID }).then(async (pend) => {
           var arr = pend.drs;
           for (let j = 0; j < arr.length; j++) {
             if (arr[j].status === -1) {
               arr[j].status = 4;
               await Pending.updateOne(
-                {tripID: data.tripMasterID},
-                {$set: {drs: arr}}
+                { tripID: data.tripMasterID },
+                { $set: { drs: arr } }
               );
             }
           }
           var drv = [];
           for (let i = 0; i < arr.length; i++) {
-            await DriverM.findOne({driverID: arr[i].driverID}).then((dr) => {
-             if(arr[i].status!=4&&arr[i].status!=0){
-              drv.push({
-                tripID: data.tripMasterID,
-                driverID: dr.driverID,
-                lat: dr.location.coordinates[1],
-                lng: dr.location.coordinates[0],
-                requestStatus: arr[i].status,
-                actionDate: new Date(),
-            });
-          }
+            await DriverM.findOne({ driverID: arr[i].driverID }).then(async (dr) => {
+              if (arr[i].status != 4 && arr[i].status != 0) {
+                var td = await TripM.findOne({ tripID: data.tripMasterID }).tripDrivers;
+                var tmpDate = new Date();
+                for (let e = 0; e < td.length; e++) {
+                  if (td[e].driverID === arr[i].driverID)
+                    tmpDate = td[e].actionDate;
+                }
+                drv.push({
+                  tripID: data.tripMasterID,
+                  driverID: dr.driverID,
+                  lat: dr.location.coordinates[1],
+                  lng: dr.location.coordinates[0],
+                  requestStatus: arr[i].status,
+                  actionDate: tmpDate,
+                });
+              }
             });
           }
           await TripM.updateOne(
-            {tripID: data.tripMasterID},
-            {$set: {cancelReasonID: data.cancelReasonID, tripDrivers: drv,tripStatusId:8}}
+            { tripID: data.tripMasterID },
+            { $set: { cancelReasonID: data.cancelReasonID, tripDrivers: drv, tripStatusId: 8 } }
           );
-          await TripM.findOne({tripID: data.tripMasterID}).then(async(trip) => {
+          await TripM.findOne({ tripID: data.tripMasterID }).then(async (trip) => {
             try {
               console.log("save canceled trip", trip);
               trip.genderRequest = 2;
-             await axios({
+              await axios({
                 method: "post",
                 url: "https://devmachine.taketosa.com/api/Trip/UpdateTrip",
                 data: trip,
@@ -159,26 +167,28 @@ module.exports = async function (data, socket, io) {
                     message: "error in sql",
                   });
                 } else {
-                  socket.emit("CancelTripByClient", 
-                  {status:true,message:"success"
-                  });
-                   Pending.findOne({tripID: data.tripMasterID}).then(
+                  socket.emit("CancelTripByClient",
+                    {
+                      status: true, message: "success"
+                    });
+                  Pending.findOne({ tripID: data.tripMasterID }).then(
                     async (pend) => {
 
                       console.log(pend)
                       var arr = pend.drs;
                       for (let j = 0; j < arr.length; j++) {
                         if (arr[j].status === 4) {
-                          await DriverM.findOne({driverID: arr[j].driverID}).then(
+                          await DriverM.findOne({ driverID: arr[j].driverID }).then(
                             (driver) => {
                               console.log(driver)
                               var postData;
                               console.log(users.get(arr[j].driverID))
-                        io.to(users.get(arr[j].driverID)).emit("CancelTripByClient",
-                           {status:true,
-               message:driver.Language=='en'? "Sorry,the client canceled your ride":'عفوا العميل قام بإلغاء الرحلة'
-                      })
-  
+                              io.to(users.get(arr[j].driverID)).emit("CancelTripByClient",
+                                {
+                                  status: true,
+                                  message: driver.Language == 'en' ? "Sorry,the client canceled your ride" : 'عفوا العميل قام بإلغاء الرحلة'
+                                })
+
                               if (driver.deviceType == 1) {
                                 // IOS
                                 postData = {
@@ -215,11 +225,11 @@ module.exports = async function (data, socket, io) {
                                   },
                                 };
                               }
-  
+
                               admin.messaging().sendToDevice(
                                 driver.tokenID,
                                 postData,
-  
+
                                 notification_options
                               );
                             }
@@ -240,5 +250,5 @@ module.exports = async function (data, socket, io) {
         });
       }
     });
-  }catch{console.log("pppppppppppppppppppppp")}
+  } catch { console.log("pppppppppppppppppppppp") }
 };
