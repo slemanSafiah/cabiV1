@@ -13,16 +13,16 @@
     <script>
         var socket = io.connect('http://localhost:5000');
         // socket.emit('UpdateLocation');
-        userid = 4
+        userid = 3
         socket.emit("join", userid)
 
         socket.on('NewTripInfo', (data) => {
             data2 = {
             requestStatus: 2,
-            driverID: 4,
-            tripID: 823
+            driverID: 3,
+            tripID: 865
         }
-            socket.emit("AcceptRejectTrip", data2);
+            //socket.emit("AcceptRejectTrip", data2);
         })
         socket.on("NewTripInfo",(data)=>{alert(data)})
 
