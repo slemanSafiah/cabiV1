@@ -15,10 +15,10 @@ module.exports = async function (data, socket, io) {
               driver.isOnline === true && driver.isBusy == false
                 ? 1
                 : driver.isOnline == true && driver.isBusy == true
-                ? 2
-                : driver.isOnline == false
-                ? 3
-                : 0,
+                  ? 2
+                  : driver.isOnline == false
+                    ? 3
+                    : 0,
             driverID: driver.driverID,
             location: driver.location,
             categoryCarTypeID: driver.categoryCarTypeID,
@@ -61,10 +61,10 @@ module.exports = async function (data, socket, io) {
               driver.isOnline === true && driver.isBusy == false
                 ? 1
                 : driver.isOnline == true && driver.isBusy == true
-                ? 2
-                : driver.isOnline == false
-                ? 3
-                : 0,
+                  ? 2
+                  : driver.isOnline == false
+                    ? 3
+                    : 0,
             driverID: driver.driverID,
             location: driver.location,
             categoryCarTypeID: driver.categoryCarTypeID,

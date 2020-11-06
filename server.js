@@ -5,6 +5,7 @@ const http = require("http");
 const cors = require("cors");
 var serviceAccount = require("./cabi-app-firebase-adminsdk-4cy4f-c6feddd07b.json");
 const axios = require("axios");
+const Sentry = require("@sentry/node");
 
 const DriverM = require("./models/Driver");
 const socketIo = require("socket.io");
@@ -81,7 +82,15 @@ admin.initializeApp({
   databaseURL: "https://cabi-app.firebaseio.com",
 });
 
+Sentry.init({
+  dsn:
+    "https://c3a30557318d4219a439dee3aefdf6bb@o469490.ingest.sentry.io/5499056",
+  maxBreadcrumbs: 50,
+  debug: true,
+});
+
 io.on("connection", (socket) => {
+
   console.log("a user connected");
 
   socket.on("IsBusy", async (data) => {
@@ -97,6 +106,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("AcceptRejectTrip", async (data) => {
+    console.log("ppppppppppppppppppppp")
     AcceptRejectTrip(data, socket, io);
   });
 
@@ -114,6 +124,7 @@ io.on("connection", (socket) => {
 
   socket.on("EndTrip", async (data) => {
     EndTrip(data, socket, io);
+
   });
 
   socket.on("UpdateLocation", (data) => {
@@ -139,11 +150,15 @@ io.on("connection", (socket) => {
   socket.on("join", (id) => {
     users.set(id, socket.id);
     console.log(users);
+    //Sentry.captureMessage(`user emit join event socketID=${socket.id} and id=${id}`);
+
   });
 
   socket.on("joinAdmin", (id) => {
     admins.set(id, socket.id);
     console.log(admins);
+    //Sentry.captureMessage(`admin emit join event socketID=${socket.id} and id=${id}`);
+
   });
 
   socket.on("disconnect", async (id) => {
@@ -152,6 +167,9 @@ io.on("connection", (socket) => {
         return [...users].find(([key, val]) => val == socket.id)[0];
       };
       const driver = getKey();
+
+      //Sentry.captureMessage(`user diconnected from socket socketID=${socket.id} and id=${driver}`);
+
       console.log(driver);
       try {
         const updated_driver = await DriverM.updateOne(
@@ -161,6 +179,7 @@ io.on("connection", (socket) => {
           {
             $set: {
               isOnline: false,
+              //   isBusy:false
             },
           }
         ).then((dr) => {
@@ -168,14 +187,17 @@ io.on("connection", (socket) => {
             io.to(admin).emit("trackCount");
           });
         });
-      } catch { }
+      } catch (error) {
+        //Sentry.captureException(error);
+
+      }
       // console.log(getKey(socket.id), "lk;lk");
       users.delete(driver);
-      listinterval.delete(driver);
-      userinterval.delete(driver);
-      trackinterval.delete(driver);
+
       console.log("user disconnected", socket.id, users);
-    } catch { }
+    } catch (error) {
+      //Sentry.captureException(error);
+    }
   });
 
   socket.on("disconnectAdmin", (number) => {
@@ -184,8 +206,47 @@ io.on("connection", (socket) => {
   });
 
   socket.on("ClearInterval", async (id) => {
-
+    /*try{
+      const getKey1 = await function w1() {
+        return [...listinterval].find(([key, val]) => val == id)[0];
+      };
+      const interval1 = getKey1();
+      listinterval.delete(interval1)
+      const getKey2 = await function w1() {
+        return [...userinterval].find(([key, val]) => val == id)[0];
+      };
+      const interval2 = getKey2();
+      userinterval.delete(interval2)
+    }catch{}*/
   });
+
+  socket.on("Logout", async (data) => {
+    try {
+      //Sentry.captureMessage(`user emit logout id=${data.driverID}`);
+      const updated_driver = await DriverM.updateOne(
+        {
+          driverID: data.driverID,
+        },
+        {
+          $set: {
+            isOnline: false,
+            isBusy: false
+          },
+        }
+      ).then((dr) => {
+        socket.emit("Logout", { status: true, message: "success" })
+        admins.forEach((admin) => {
+          io.to(admin).emit("trackCount");
+        });
+      });
+    } catch (error) {
+      socket.emit("Logout", { status: false, message: "error in mongodb" })
+
+      //Sentry.captureException(error);
+
+    }
+
+  })
 
 });
 
@@ -215,7 +276,7 @@ app.post("/driver/updateLocation", async (req, res) => {
                 coordinates: [newLong, newLat],
                 type: "Point",
               },
-              UpdateLocationDate: new Date(),
+              updateLocationDate: new Date((new Date()).getTime() + 180 * 60000),
             },
           }
         ).then(() => {
@@ -261,7 +322,6 @@ app.post("/driver/updateLocation", async (req, res) => {
       )
       .catch((err) => console.log(err));
   } catch (error) {
-    console.log("error");
     res.json({
       sucess: 0,
       message: "update busy status faild",
@@ -271,5 +331,7 @@ app.post("/driver/updateLocation", async (req, res) => {
 
 const Port = process.env.Port || 5000;
 server.listen(Port, () => {
+  //Sentry.captureMessage(`restart server express.js on port=${Port}`);
+
   console.log(`Server running on port ${Port}`);
 });

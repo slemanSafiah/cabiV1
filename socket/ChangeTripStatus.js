@@ -3,13 +3,13 @@ const Pending = require("../models/Pending");
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-var {users, notification_options} = require("../server");
+var { users, notification_options } = require("../server");
 
 module.exports = async function (data, socket, io) {
   try {
-    console.log(data,"kljlkjlk");
-    await Driver.findOne({driverID: data.driverID}).then(async (driver) => {
-      await Pending.findOne({tripID: data.tripId}).then(async (trip) => {
+    console.log(data, "kljlkjlk");
+    await Driver.findOne({ driverID: data.driverID }).then(async (driver) => {
+      await Pending.findOne({ tripID: data.tripId }).then(async (trip) => {
         console.log(users.get(trip.userID), trip.userID);
         const config = {
           method: "post",
@@ -32,61 +32,62 @@ module.exports = async function (data, socket, io) {
                     trip.Language == "ar"
                       ? res.data.data.titleAr
                       : res.data.data.titleEn,
+                  isCanceled: data.tripStatusType == 6 ? false : true
                 });
               }
-              console.log(users.get(data.driverID),"kjkljlkj")
+              console.log(users.get(data.driverID), "kjkljlkj")
               socket.emit("ChangeTripStatus", {
                 tripID: data.tripId,
                 status: true,
                 data: res.data.data,
-                message:'success'
+                message: 'success'
               });
+              try {
+                var postData;
 
-              var postData;
+                if (trip.deviceType == 1) {
+                  // IOS
+                  postData = {
+                    data: {
+                      PushType: "6",
+                      PushTitle:
+                        trip.Language == "ar"
+                          ? res.data.data.titleAr
+                          : res.data.data.titleEn,
+                    },
+                    notification: {
+                      body:
+                        trip.Language == "ar"
+                          ? res.data.data.bodyAr
+                          : res.data.data.bodyEn,
+                      sound: "default",
+                    },
+                  };
+                } else if (trip.deviceType == 2) {
+                  // Andriod
+                  postData = {
+                    data: {
+                      PushType: "6",
+                      PushTitle:
+                        trip.Language == "ar"
+                          ? res.data.data.titleAr
+                          : res.data.data.titleEn,
+                      PushMessage:
+                        trip.Language == "ar"
+                          ? res.data.data.bodyAr
+                          : res.data.data.bodyEn,
+                      content_available: "true",
+                      priority: "high",
+                    },
+                  };
+                }
 
-              if (trip.deviceType == 1) {
-                // IOS
-                postData = {
-                  data: {
-                    PushType: "6",
-                    PushTitle:
-                      trip.Language == "ar"
-                        ? res.data.data.titleAr
-                        : res.data.data.titleEn,
-                  },
-                  notification: {
-                    body:
-                      trip.Language == "ar"
-                        ? res.data.data.bodyAr
-                        : res.data.data.bodyEn,
-                    sound: "default",
-                  },
-                };
-              } else if (trip.deviceType == 2) {
-                // Andriod
-                postData = {
-                  data: {
-                    PushType: "6",
-                    PushTitle:
-                      trip.Language == "ar"
-                        ? res.data.data.titleAr
-                        : res.data.data.titleEn,
-                    PushMessage:
-                      trip.Language == "ar"
-                        ? res.data.data.bodyAr
-                        : res.data.data.bodyEn,
-                    content_available: "true",
-                    priority: "high",
-                  },
-                };
-              }
-
-              admin.messaging().sendToDevice(
-                trip.tokenID,
-                postData,
-
-                notification_options
-              );
+                admin.messaging().sendToDevice(
+                  trip.tokenID,
+                  postData,
+                  notification_options
+                );
+              } catch { }
             } else {
               socket.to(users.get(data.driverID)).emit("ChangeTripStatus", {
                 tripID: data.tripId,

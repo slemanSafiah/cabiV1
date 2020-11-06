@@ -5,6 +5,7 @@ const TripM = require("../models/Trip");
 const Pending = require("../models/Pending");
 var { users, notification_options } = require("../server");
 const admin = require("firebase-admin");
+const Sentry = require("@sentry/node");
 
 module.exports = async function (data, socket, io) {
   console.log("bmnbnmbmn", data);
@@ -13,6 +14,7 @@ module.exports = async function (data, socket, io) {
       console.log("kljkljkl", resp)
       if (resp.tripStatusId == 3) {
         console.log("kljjlkj")
+
         await axios({
           method: "post",
           url: `https://devmachine.taketosa.com/api/Trip/CancelTripPassenger?tripMasterID=${data.tripMasterID}&cancelReasonID=${data.cancelReasonID}`,
@@ -24,6 +26,8 @@ module.exports = async function (data, socket, io) {
         }).then(async (res) => {
           console.log(res.data);
           if (res.data.status) {
+            Sentry.captureMessage(`trip canceled by client where tripID=${data.tripMasterID} after accept trip`);
+
             await Pending.findOne({ tripID: data.tripMasterID }).then(
               async (pend) => {
                 var arr = pend.drs;
@@ -48,7 +52,7 @@ module.exports = async function (data, socket, io) {
                           });
                         console.log(users.get(data.userId), driver[0].tokenID, "kklljklj", users, data.userId)
                         socket.emit("CancelTripByClient", {
-                          status: true, message: 'succes'
+                          status: true, message: 'success'
                         });
                         var postData;
                         if (driver.deviceType == 1) {
@@ -101,6 +105,8 @@ module.exports = async function (data, socket, io) {
             );
 
           } else {
+            Sentry.captureMessage(`trip cancel has faild by client where tripID=${data.tripMasterID} after accept trip`);
+
             socket.emit("CancelTripByClient", {
               status: false,
               message: "error in sql",
@@ -108,9 +114,11 @@ module.exports = async function (data, socket, io) {
           }
         });
       } else {
+
         console.log("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
         Pending.findOne({ tripID: data.tripMasterID }).then(async (pend) => {
           var arr = pend.drs;
+          //console.log(pend, 'pennnnnnnnnnnd')
           for (let j = 0; j < arr.length; j++) {
             if (arr[j].status === -1) {
               arr[j].status = 4;
@@ -121,26 +129,34 @@ module.exports = async function (data, socket, io) {
             }
           }
           var drv = [];
+          //console.log(arr, 'arrrrrrrrrrrre');
           for (let i = 0; i < arr.length; i++) {
             await DriverM.findOne({ driverID: arr[i].driverID }).then(async (dr) => {
-              if (arr[i].status != 4 && arr[i].status != 0) {
-                var td = await TripM.findOne({ tripID: data.tripMasterID }).tripDrivers;
-                var tmpDate = new Date();
-                for (let e = 0; e < td.length; e++) {
-                  if (td[e].driverID === arr[i].driverID)
-                    tmpDate = td[e].actionDate;
-                }
-                drv.push({
-                  tripID: data.tripMasterID,
-                  driverID: dr.driverID,
-                  lat: dr.location.coordinates[1],
-                  lng: dr.location.coordinates[0],
-                  requestStatus: arr[i].status,
-                  actionDate: tmpDate,
-                });
+              if (arr[i].status !== 4 && arr[i].status !== 0) {
+                await TripM.findOne({ tripID: data.tripMasterID }).then(td => {
+                  //console.log(td.tripDrivers, "uuuuuuuuuuuuuuuuuuuuuuuuuu")
+                  var tmpDate = new Date();
+                  for (let e = 0; e < td.tripDrivers.length; e++) {
+                    if (td.tripDrivers[e].driverID === arr[i].driverID) {
+                      console.log('finally');
+                      console.log(td.tripDrivers[e], arr[i].driverID)
+                      tmpDate = td.tripDrivers[e].actionDate;
+                      break;
+                    }
+                  }
+                  drv.push({
+                    tripID: data.tripMasterID,
+                    driverID: dr.driverID,
+                    lat: dr.location.coordinates[1],
+                    lng: dr.location.coordinates[0],
+                    requestStatus: arr[i].status,
+                    actionDate: tmpDate,
+                  });
+                })
               }
             });
           }
+          console.log(drv);
           await TripM.updateOne(
             { tripID: data.tripMasterID },
             { $set: { cancelReasonID: data.cancelReasonID, tripDrivers: drv, tripStatusId: 8 } }
@@ -166,7 +182,11 @@ module.exports = async function (data, socket, io) {
                     status: false,
                     message: "error in sql",
                   });
+                  Sentry.captureMessage(`trip cancel has faild by client where tripID=${data.tripMasterID} before accept trip`);
+
                 } else {
+                  Sentry.captureMessage(`trip canceled by client where tripID=${data.tripMasterID} before accept trip`);
+
                   socket.emit("CancelTripByClient",
                     {
                       status: true, message: "success"
@@ -241,6 +261,8 @@ module.exports = async function (data, socket, io) {
                 }
               });
             } catch (error) {
+              Sentry.captureException(error);
+
               socket.emit("CancelTripByClient", {
                 status: false,
                 message: "error in mongodb",
@@ -250,5 +272,9 @@ module.exports = async function (data, socket, io) {
         });
       }
     });
-  } catch { console.log("pppppppppppppppppppppp") }
+  } catch (error) {
+    Sentry.captureException(error);
+
+    console.log(error)
+  }
 };

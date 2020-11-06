@@ -85,7 +85,6 @@ module.exports = async function (data, socket, io) {
                             driverID: saved1.drs[l].driverID,
                           }).then((d) => {
                             //console.log(riyadh, 'dddddddd')
-                            var d = new Date();
                             trp.push({
                               driverID: d.driverID,
                               requestStatus: 1,
@@ -276,7 +275,7 @@ module.exports = async function (data, socket, io) {
                         );
                       });
                     } catch (error) {
-                      console.log("haha");
+                      console.log(error);
                     }
                   }
                 );
@@ -519,14 +518,18 @@ module.exports = async function (data, socket, io) {
                     console.log(from_to);
                     let interval4 = setInterval(async function () {
                       now++;
-                      await Pending.findOne({ tripID: data.tripID }).then(
+                      Pending.findOne({ tripID: data.tripID }).then(
                         (pen7) => {
                           if (pen7.drs[idx2].status !== -1) {
                             clearInterval(interval4, "clear interval4");
                           }
                         }
                       );
-                      console.log(now);
+                      console.log(now, 'jhg');
+                      if (now === 5) {
+                        socket.emit("ready");
+                        console.log('asd', socket.connected);
+                      }
                       if (now === 20) {
                         await Pending.findOne({ tripID: data.tripID }).then(
                           async (pendingTripE) => {

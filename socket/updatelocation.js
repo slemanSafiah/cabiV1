@@ -2,7 +2,7 @@ const DriverM = require("../models/Driver");
 const axios = require("axios");
 var {
   admins
-  } = require("../server");
+} = require("../server");
 
 module.exports = async function (data, socket, io) {
   //console.log(data);
@@ -30,8 +30,7 @@ module.exports = async function (data, socket, io) {
                 coordinates: [newLong, newLat],
                 type: "Point",
               },
-
-              UpdateLocationDate: new Date(),
+              updateLocationDate: new Date((new Date()).getTime() + 180 * 60000),
             },
           }
         ).then(() => {
@@ -44,10 +43,10 @@ module.exports = async function (data, socket, io) {
               driver.isOnline === true && driver.isBusy == false
                 ? 1
                 : driver.isOnline == true && driver.isBusy == true
-                ? 2
-                : driver.isOnline == false
-                ? 3
-                : 0,
+                  ? 2
+                  : driver.isOnline == false
+                    ? 3
+                    : 0,
             driverID: driver.driverID,
             location: location,
             categoryCarTypeID: driver.categoryCarTypeID,

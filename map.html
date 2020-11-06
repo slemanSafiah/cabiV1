@@ -35,6 +35,14 @@
         socket.on("GetAvailableDrivers",data=>alert(
             "l;lk;lk;"
         ))
+        socket.on("ready",()=>{
+            console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+            dt={
+                tripMasterID:1025
+            }
+            socket.emit("CancelTripByClient",dt);
+            alert('hello');
+        })
     </script>
     </body>
 </html>

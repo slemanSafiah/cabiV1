@@ -13,14 +13,14 @@
     <script>
         var socket = io.connect('http://localhost:5000');
         // socket.emit('UpdateLocation');
-        userid = 1010
+        userid = 4
         socket.emit("join", userid)
 
         socket.on('NewTripInfo', (data) => {
             data2 = {
            requestStatus: 2,
-            driverID: 1010,
-            tripID: 912
+            driverID: 4,
+            tripID: 1025
         }
             socket.emit("AcceptRejectTrip", data2);
         })

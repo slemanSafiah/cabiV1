@@ -1,6 +1,8 @@
 const DriverM = require("../models/Driver");
+const Sentry = require("@sentry/node");
+
 var {
-admins
+  admins
 } = require("../server");
 
 module.exports = async function (data, socket, io) {
@@ -20,16 +22,18 @@ module.exports = async function (data, socket, io) {
           },
         }
       ).then(() => {
+        Sentry.captureMessage(`driver emit isBusy event driverID=${data.driverID} `);
+
         const ISBUSY = true;
         const data1 = {
           status:
             driver.isOnline === true && ISBUSY == false
               ? 1
               : driver.isOnline == true && ISBUSY == true
-              ? 2
-              : driver.isOnline == false
-              ? 3
-              : 0,
+                ? 2
+                : driver.isOnline == false
+                  ? 3
+                  : 0,
           driverID: driver.driverID,
           location: driver.location,
           categoryCarTypeID: driver.categoryCarTypeID,
@@ -64,16 +68,18 @@ module.exports = async function (data, socket, io) {
           },
         }
       ).then(() => {
+        Sentry.captureMessage(`driver emit is not Busy event driverID=${data.driverID} `);
+
         const ISBUSY = false;
         const data1 = {
           status:
             driver.isOnline === true && ISBUSY == false
               ? 1
               : driver.isOnline == true && ISBUSY == true
-              ? 2
-              : driver.isOnline == false
-              ? 3
-              : 0,
+                ? 2
+                : driver.isOnline == false
+                  ? 3
+                  : 0,
           driverID: driver.driverID,
           location: driver.location,
           categoryCarTypeID: driver.categoryCarTypeID,
@@ -101,6 +107,7 @@ module.exports = async function (data, socket, io) {
       message: "isbusy success",
     });
   } catch (error) {
+    Sentry.captureException(error);
     socket.emit("IsBusy", {
       status: false,
       message: "error in busy",
