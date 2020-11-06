@@ -523,11 +523,12 @@ module.exports = async function (data, socket, io) {
                           if (pen7.drs[idx2].status !== -1) {
                             clearInterval(interval4, "clear interval4");
                           }
+                          console.log(pen7.drs)
                         }
                       );
                       console.log(now, 'jhg');
                       if (now === 5) {
-                        socket.emit("ready");
+                        io.emit("ready");
                         console.log('asd', socket.connected);
                       }
                       if (now === 20) {
@@ -818,6 +819,9 @@ module.exports = async function (data, socket, io) {
                                               clearInterval(interval15);
                                             }
                                           });
+                                          if (now115 === 5) {
+                                            //io.emit("ready");
+                                          }
                                           if (now115 === 20) {
                                             Pending.findOne({
                                               tripID: data.tripID,

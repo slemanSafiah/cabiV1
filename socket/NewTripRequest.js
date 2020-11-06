@@ -513,7 +513,7 @@ module.exports = async function (data, socket, io) {
                             }
                           );
                           if (now2 === 5) {
-                            io.emit("ready");
+                            socket.emit("ready");
                           }
                           if (now2 === 20) {
                             Pending.findOne({
